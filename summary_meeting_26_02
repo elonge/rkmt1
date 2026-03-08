@@ -1,0 +1,12 @@
+Hi. Here's a summary of our discussion and the next milestone - I'm going to build a simple web app where users can ask questions, but my main focus will be getting the backend workflow right.
+
+1. Basically I'll try to build the real runtime architecture but with many "dummy" tools / agents for now.
+
+2. When a user asks a question, the backend will first return a "plan" and wait. The user can review the plan, suggest changes, or just hit approve.
+
+3. Once approved, the backend will run the plan in the background.
+
+4. We'll only build a couple of real tools (like reading from the database) just to prove the whole thing works from start to finish.
+
+5. I will use dummy data in the database while building this, not our real production data.
+

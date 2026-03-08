@@ -1,0 +1,76 @@
+﻿Explanation of the data
+First, we looked at groups that had at least 2 mentions of Josh Lincoln between 1.8.2025 and 1.10.2025. We exported all the messages from these groups → masked_Lincoln_messages_output.csv.
+
+
+We then added more data about all user profiles appearing in masked_Lincoln_messages_output.csv (as authors of messages or reactors to messages).
+For each user, we exported:
+1. All the groups they are a member of → masked_user_groups_data.csv
+2. All the reactions they made across all the groups they are members of (reminder - masked_Lincoln_messages_output.csv only contains data from groups with at least 2 Lincoln mentions. Many of the users are active also in groups that didn’t have 2 or more Lincoln mentions) → masked_user_reactions.csv
+3. All the messages they sent across all the groups they are members of → masked_user_messages.csv
+
+
+Masked_Lincoln_messages_output.csv
+All messages from all the groups that had at least two messages mentioning Lincoln between 1.8.2025 and 1.10.2025. 
+The columns:
+* maskedGroupId
+* description - description of the group
+* subject - subject of the group
+* memberCount - number of members in the group
+* creationTimestamp - when the group was created
+* announcementOnly - whether the group is readonly or discussion
+* joinedAt - when we joined the group
+* political_leaning - our tag of the political leaning of the group (if applicable)
+* demographic - our tag of the targeted demographic of the group (if applicable)
+* topic - our tag of the topic of the group
+* organization - our tag of the organization the group belongs to (if applicable)
+* organization_type - our tag of the type of the organization the group belongs to (if applicable)
+* age - our tag of the targeted age group of the group (if applicable)
+* region - our tag of the geographical region the group targets (if applicable)
+* maskedMessageId - the ID of the message (masked)
+* maskedAuthorId - the ID of the author of the message (masked)
+* timestamp - when the message was sent
+* body - the body of the message
+* maskedMessageReply - the IDs of the reply messages to the original message (if exists) (masked)
+* maskedReactions - the reactions to the message (if exists) (masked)
+* maskedQuotedMessageId - the ID of the message that this message is a reply to (if exists) (masked)
+* forwardingScore - the number of times the message was forwarded
+* mediaHash - the hash of the attached media (if exists)
+* mediaMimeType - the mimetype of the attached media (if exists)
+* num_Lincoln_messages - the number of messages mentioning  Lincoln in the group in the specified time period
+* percent_Lincoln_messages - the percentage of messages in the group mentioning Lincoln in the specified time period
+Masked_user_groups_data.csv
+User group memberships, for all the users appearing in masked_Lincoln_messages_output.csv (i.e. for each user appearing in masked_Lincoln_messages_output.csv, a list of all the groups they are a member of).
+Columns that hold attributes of the group:
+* description
+* subject
+* memberCount
+* creationTimestamp
+* announcementOnly
+* membershipApproval
+* joinedAt - when rakemet joined the group
+* memberAddMode
+* tags.politicalLeaning.tagValue
+* tags.demographic.tagValue
+* tags.topic.tagValue
+* tags.organization.tagValue
+* tags.organization.organizationType
+* tags.demographic.age
+* tags.demographic.gender
+* tags.organization.organizationName
+* masked_groupId
+* tags.geographic
+
+
+Columns that hold attributes of the user:
+* firstName
+* masked_userId
+* groups.role
+* groups.status
+
+
+Masked_user_reactions.csv
+All reactions made by all the users appear in masked_Lincoln_messages_output.csv (across all our data - including in groups that aren’t in masked_Lincoln_messages_output.csv).
+
+
+Masked_user_messages.csv
+All messages written by all the users appear in masked_Lincoln_messages_output.csv (across all our data - including in groups that aren’t in masked_Lincoln_messages_output.csv).

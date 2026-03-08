@@ -1,0 +1,7 @@
+﻿1. User Segmentation Questions — for example (“What is the political leaning distribution of users active in the last 30 days?”)
+2. Narrative Discovery & Monitoring Questions — for example (“What narratives emerged in the past 7 days, ranked by discussion volume?”)
+3. Narrative Sentiment / Stance Questions — for example (“What is the stance toward Benett within each major narrative?”)
+4. Influencer Identification Questions — for example (“Who are the key influencers spreading narrative X?”)
+5. Audience Construction Questions — for example (“Identify Israelis abroad active in political discussions”)
+6. Detect polarizing subjects that might make people reconsider their vote (or make them give up voting altogether).
+Detect users that are most likely to be potentially "flipped" (from pro-coalition to pro-opposition)

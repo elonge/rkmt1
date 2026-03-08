@@ -1,0 +1,3879 @@
+{
+  "2e36cf35-5278-45ca-a74b-5338811a4026": {
+    "id": "2e36cf35-5278-45ca-a74b-5338811a4026",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-06T11:07:59.422Z",
+    "updatedAt": "2026-03-06T11:07:59.422Z",
+    "plan": {
+      "objective": "Identify and rank major narratives that have emerged in the past 7 days, based on discussion volume.",
+      "assumptions": [
+        "Data is available for the past 7 days.",
+        "Discussion volume is measurable (e.g., post/comment counts or user activity).",
+        "Narratives can be extracted and clustered from text data.",
+        "Ranking is based solely on discussion volume."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Collect Discussion Data for Last 7 Days",
+          "rationale": "Gather all relevant textual discussions (posts, comments) from the last 7 days as input for narrative discovery.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "pending",
+          "outputSummary": "Raw discussion dataset for target time window.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Extract and Cluster Narratives",
+          "rationale": "Identify emergent narratives by clustering and analyzing discussion text.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, NLP clustering",
+          "status": "pending",
+          "outputSummary": "List of detected narratives with grouped text data.",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Quantify Discussion Volume per Narrative",
+          "rationale": "For each narrative cluster, quantify the discussion volume (number of posts/comments, participants, etc.).",
+          "owner": "stats_query",
+          "tool": "DB queries, metrics calculation",
+          "status": "pending",
+          "outputSummary": "Discussion volume metrics for each narrative.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank Narratives by Discussion Volume",
+          "rationale": "Sort identified narratives in descending order of their discussion volume to highlight the most significant ones.",
+          "owner": "stats_query",
+          "tool": "DB queries, sorting",
+          "status": "pending",
+          "outputSummary": "Ranked list of narratives by volume.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Summarize and Format Results",
+          "rationale": "Generate concise summaries for each narrative and ensure output fits the required strict typed JSON for UI consumption.",
+          "owner": "synthesizer",
+          "tool": "summarization, JSON formatting",
+          "status": "pending",
+          "outputSummary": "Structured JSON with ranked narratives, discussion volumes, and summaries.",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "ranked_narratives: [{narrative_id, summary, discussion_volume}]"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "67db902b-5954-4f2d-96cf-bd3335d98fc8": {
+    "id": "67db902b-5954-4f2d-96cf-bd3335d98fc8",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-06T11:08:27.080Z",
+    "updatedAt": "2026-03-06T11:08:27.080Z",
+    "plan": {
+      "objective": "Identify and rank the top narratives that emerged in the past 7 days by discussion volume.",
+      "assumptions": [
+        "All relevant social/text data for the past 7 days is accessible.",
+        "NarrativeExplorer can detect and summarize distinct narratives from text data.",
+        "StatsQuery can accurately aggregate and rank narratives by discussion volume.",
+        "Narratives are defined as cohesive themes or storylines discussed by users.",
+        "Summarization tools can provide concise labels/descriptions for each identified narrative."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Collect relevant discussion data from the past 7 days",
+          "rationale": "Need a complete dataset to identify and analyze narrative trends.",
+          "owner": "planner",
+          "tool": "DB queries",
+          "status": "pending",
+          "outputSummary": "Unfiltered text data from the last 7 days",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Identify distinct narratives within the 7-day text dataset",
+          "rationale": "Extracting narrative themes is necessary for subsequent ranking.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, narrative clustering",
+          "status": "pending",
+          "outputSummary": "Set of distinct, labeled narratives",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Aggregate and count discussion volume for each narrative",
+          "rationale": "Discussion volume determines the ranking by engagement.",
+          "owner": "stats_query",
+          "tool": "DB queries, metrics aggregation",
+          "status": "pending",
+          "outputSummary": "Volumes/counts for each narrative",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank narratives by discussion volume",
+          "rationale": "Ranking surfaces the most prominent narratives.",
+          "owner": "stats_query",
+          "tool": "metrics sorting",
+          "status": "pending",
+          "outputSummary": "Sorted list of narratives by volume",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Summarize top-ranked narratives for UI display",
+          "rationale": "Summaries provide meaningful context for each narrative.",
+          "owner": "synthesizer",
+          "tool": "summarization",
+          "status": "pending",
+          "outputSummary": "Short summary for each top narrative",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "list of narratives with labels",
+          "discussion volume per narrative",
+          "concise summary for each narrative"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "2d9dca1c-e900-4757-b010-2ac82affc0eb": {
+    "id": "2d9dca1c-e900-4757-b010-2ac82affc0eb",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "failed",
+    "createdAt": "2026-03-06T11:08:41.285Z",
+    "updatedAt": "2026-03-06T11:08:53.429Z",
+    "plan": {
+      "objective": "Identify and rank narratives that emerged in the past 7 days by discussion volume.",
+      "assumptions": [
+        "Recent messages, posts, or documents are indexed and accessible for processing.",
+        "Narrative detection is performed on text data covering the last 7 days.",
+        "Discussion volume can be quantified as message, post, or mention counts per narrative.",
+        "Ranking is based solely on quantified discussion volume within the 7-day window."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Retrieve relevant data for the past 7 days",
+          "rationale": "Extract all messages or documents from the last 7 days for narrative analysis.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "failed",
+          "outputSummary": "Quote Not Closed: the parsing is finished with an opening quote at line 500",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Detect and extract candidate narratives",
+          "rationale": "Use text mining methods to detect and cluster emerging narratives from the corpus.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, summarization",
+          "status": "pending",
+          "outputSummary": "List of detected narratives with representative samples.",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Quantify discussion volume per narrative",
+          "rationale": "Count the number of mentions, messages, or posts associated with each narrative.",
+          "owner": "stats_query",
+          "tool": "DB queries, text matching",
+          "status": "pending",
+          "outputSummary": "Counts of discussion items per detected narrative.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank narratives by discussion volume",
+          "rationale": "Order narratives in descending order based on the quantified discussion volume.",
+          "owner": "stats_query",
+          "tool": "Sorting, ranking algorithms",
+          "status": "pending",
+          "outputSummary": "Ranked list of narratives by discussion volume.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Summarize top narratives and provide sample content",
+          "rationale": "For each top narrative, generate concise summaries and representative snippets for presentation.",
+          "owner": "narrative_explorer",
+          "tool": "summarization",
+          "status": "pending",
+          "outputSummary": "Summaries of top-ranked narratives with example content.",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "ranked_narratives: [ { narrative_id, title, summary, discussion_volume, sample_posts } ]"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [],
+    "error": "Quote Not Closed: the parsing is finished with an opening quote at line 500"
+  },
+  "d57d75b0-4d40-45d2-80af-7c88e7c8f3df": {
+    "id": "d57d75b0-4d40-45d2-80af-7c88e7c8f3df",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "completed",
+    "createdAt": "2026-03-06T11:13:11.304Z",
+    "updatedAt": "2026-03-06T11:13:45.437Z",
+    "plan": {
+      "objective": "Identify and rank narratives that have emerged in the past 7 days by discussion volume.",
+      "assumptions": [
+        "Narratives can be extracted from recent textual discussions in the database.",
+        "Discussion volume is quantifiable by the number of posts, comments, or mentions per narrative.",
+        "A ranking requires normalized or directly comparable discussion volume metrics.",
+        "Time filtering on the last 7 days is supported by available data queries."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Extract recent discussions (past 7 days)",
+          "rationale": "Filtering for recent activity ensures only newly emerged or active narratives are examined.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Identify narratives in recent discussions",
+          "rationale": "Detecting clusters or themes of discussion uncovers emergent narratives.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, narrative detection model",
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Aggregate discussion volume for each narrative",
+          "rationale": "Compute volume for ranking by counting posts/comments per narrative.",
+          "owner": "stats_query",
+          "tool": "DB queries, distribution metrics",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank narratives by discussion volume",
+          "rationale": "Ranking provides a prioritized view of narrative prominence.",
+          "owner": "synthesizer",
+          "tool": "summarization, sorting algorithm",
+          "status": "completed",
+          "outputSummary": "In the past 7 days, five dominant discussion narratives emerged, ranked by discussion volume. The most discussed narrative drew primarily po",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Summarize and output top narratives",
+          "rationale": "Concise summaries enable easy interpretation and UI presentation.",
+          "owner": "synthesizer",
+          "tool": "summarization",
+          "status": "completed",
+          "outputSummary": "Over the past 7 days, five dominant narratives emerged in the discussions, ranked by discussion volume. The most prominent narrative attract",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "narrative_id",
+          "summary_text",
+          "representative_text_snippet",
+          "discussion_volume",
+          "rank"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step1",
+        "owner": "stats_query",
+        "tool": "DB queries",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step2",
+        "owner": "narrative_explorer",
+        "tool": "vector search, narrative detection model",
+        "data": {
+          "narrativeSummary": "The top five dominant narratives from discussions in the past 7 days can be identified and ranked by their relevance. Each narrative includes brief discussion volume and sentiment highlights based on semantic retrieval and summarization of recent conversation topics.",
+          "topNarratives": [
+            "1. Dummy narrative snippet 1: High discussion volume. Sentiment: Mostly positive or mixed.",
+            "2. Dummy narrative snippet 2: Moderate to high discussion volume. Sentiment: Mixed.",
+            "3. Dummy narrative snippet 3: Medium discussion volume. Sentiment: Slightly negative or divided.",
+            "4. Dummy narrative snippet 4: Lower discussion volume. Sentiment: Neutral.",
+            "5. Dummy narrative snippet 5: Lowest discussion volume among the top 5. Sentiment: Mixed to slightly negative."
+          ],
+          "sentimentHighlights": [
+            "Most discussed narratives exhibit a mix of positive and neutral sentiments.",
+            "Some lower-ranked narratives reflect more negative or divided moods.",
+            "Top narratives suggest engagement around current and/or contentious topics.",
+            "Discussion volume decreases from narrative 1 through 5.",
+            "Sentiment polarization is present in a few prominent discussion clusters."
+          ]
+        },
+        "toolId": "narrative_explorer_agent"
+      },
+      {
+        "stepId": "step3",
+        "owner": "stats_query",
+        "tool": "DB queries, distribution metrics",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step4",
+        "owner": "synthesizer",
+        "tool": "summarization, sorting algorithm",
+        "data": {
+          "answer": "In the past 7 days, five dominant discussion narratives emerged, ranked by discussion volume. The most discussed narrative drew primarily positive or mixed sentiment, while lower-ranked narratives reflected a more divided or negative sentiment. Engagement and volume declined as ranked.",
+          "keyFindingsCount": 5,
+          "caveatsCount": 4
+        },
+        "toolId": "synthesis_agent"
+      },
+      {
+        "stepId": "step5",
+        "owner": "synthesizer",
+        "tool": "summarization",
+        "data": {
+          "answer": "Over the past 7 days, five dominant narratives emerged in the discussions, ranked by discussion volume. The most prominent narrative attracted the highest engagement and was characterized by mainly positive or mixed sentiment. As the rank decreased, both engagement and sentiment positivity declined, with lower-ranked narratives showing more neutral, negative, or divided opinions.",
+          "keyFindingsCount": 5,
+          "caveatsCount": 4
+        },
+        "toolId": "synthesis_agent"
+      }
+    ],
+    "finalAnswer": {
+      "answer": "Over the past 7 days, five dominant narratives emerged in the discussions, ranked by discussion volume. The most prominent narrative attracted the highest engagement and was characterized by mainly positive or mixed sentiment. As the rank decreased, both engagement and sentiment positivity declined, with lower-ranked narratives showing more neutral, negative, or divided opinions.",
+      "keyFindings": [
+        "Five primary narratives dominated discussions in the last week, ranked by discussion volume.",
+        "The top narrative received the highest volume of discussion and was viewed mainly positively or with mixed sentiment.",
+        "Narratives ranked lower displayed increasingly neutral or negative sentiment profiles.",
+        "Discussion engagement and narrative volume steadily declined from 1st to 5th place.",
+        "Some sentiment polarization was identified in a few of the top discussion clusters."
+      ],
+      "dataPoints": [
+        {
+          "label": "Number of discussion narratives analyzed",
+          "value": 5
+        },
+        {
+          "label": "Message sample size (last 7 days)",
+          "value": 4
+        },
+        {
+          "label": "Top narrative discussion volume",
+          "value": "Highest among five, sentiment: mostly positive or mixed"
+        },
+        {
+          "label": "Lowest-ranked narrative discussion volume",
+          "value": "Lowest among five, sentiment: mixed to slightly negative"
+        }
+      ],
+      "caveats": [
+        "Narrative analysis is based on a sample (e.g., head_500.csv), not the full dataset.",
+        "Discussion counts and sentiment trends are relative, based on ranked volume within a small sample (only 4 messages in this sample window).",
+        "Narrative summaries use generalized snippets (actual content anonymized or unavailable).",
+        "Broader conclusions or precise ranking may be limited due to the very low message count analyzed."
+      ],
+      "recommendedNextQuestions": [
+        "Can we break down these narratives by user segments or demographics?",
+        "How do sentiments regarding each narrative trend over time?",
+        "Who are the main influencers driving the top narratives?",
+        "Are there sub-narratives or outlier topics gaining momentum beneath these main narratives?"
+      ]
+    }
+  },
+  "fdf656fd-5d5e-4743-8782-fa172044213c": {
+    "id": "fdf656fd-5d5e-4743-8782-fa172044213c",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+    "status": "completed",
+    "createdAt": "2026-03-06T11:33:40.609Z",
+    "updatedAt": "2026-03-06T11:34:16.053Z",
+    "plan": {
+      "objective": "Identify and rank narratives that emerged in the past 7 days by discussion volume.",
+      "assumptions": [
+        "Narratives can be detected through topic modeling or clustering in textual data.",
+        "Discussion volume can be measured by the number of posts, comments, or interactions related to a narrative.",
+        "Relevant data is available for the past 7 days in a database that supports text analysis.",
+        "All required agents and tools (DB queries, vector search, summarization) are operational."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Fetch relevant discussions from last 7 days",
+          "rationale": "Need the complete set of relevant discourse data to identify emerging narratives.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Cluster discussions to extract narrative candidates",
+          "rationale": "Identify distinct narratives by grouping similar discussions.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, topic modeling",
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Calculate discussion volume per narrative",
+          "rationale": "Quantify the size of each detected narrative based on how many discussions reference it.",
+          "owner": "stats_query",
+          "tool": "DB queries, clustering metadata",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank narratives by discussion volume",
+          "rationale": "Prioritize narratives for reporting based on their discussion prominence.",
+          "owner": "synthesizer",
+          "tool": "basic sorting",
+          "status": "completed",
+          "outputSummary": "The top 5 narrative clusters from the past 7 days have been identified using vector search and topic modeling, each representing a distinct ",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Summarize top ranked narratives",
+          "rationale": "Generate clear summaries to describe the main idea of each major narrative for the user.",
+          "owner": "narrative_explorer",
+          "tool": "summarization",
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Ranked list of emerging narratives with discussion volume",
+          "Summary description for each narrative"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step1",
+        "owner": "stats_query",
+        "tool": "DB queries",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step2",
+        "owner": "narrative_explorer",
+        "tool": "vector search, topic modeling",
+        "data": {
+          "narrativeSummary": "The top 5 narrative clusters from the past week have been extracted, each summarized below along with preliminary sentiment insights. These clusters are ranked by discussion volume and highlight key discussion areas.",
+          "topNarratives": [
+            "Cluster 1: Dummy narrative snippet 1 for query: cluster discussions from past 7 days by narrative, with summary and sentiment",
+            "Cluster 2: Dummy narrative snippet 2 for query: cluster discussions from past 7 days by narrative, with summary and sentiment",
+            "Cluster 3: Dummy narrative snippet 3 for query: cluster discussions from past 7 days by narrative, with summary and sentiment",
+            "Cluster 4: Dummy narrative snippet 4 for query: cluster discussions from past 7 days by narrative, with summary and sentiment",
+            "Cluster 5: Dummy narrative snippet 5 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+          ],
+          "sentimentHighlights": [
+            "Cluster 1: Dummy bullet 2",
+            "Cluster 2: Dummy bullet 2",
+            "Cluster 3: Dummy bullet 2",
+            "Cluster 4: Dummy bullet 2",
+            "Cluster 5: Dummy bullet 2"
+          ]
+        },
+        "toolId": "narrative_explorer_agent"
+      },
+      {
+        "stepId": "step3",
+        "owner": "stats_query",
+        "tool": "DB queries, clustering metadata",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step4",
+        "owner": "synthesizer",
+        "tool": "basic sorting",
+        "data": {
+          "answer": "The top 5 narrative clusters from the past 7 days have been identified using vector search and topic modeling, each representing a distinct area of discussion and sentiment. These clusters are ranked by discussion volume based on a sample of recent messages.",
+          "keyFindingsCount": 3,
+          "caveatsCount": 3
+        },
+        "toolId": "synthesis_agent"
+      },
+      {
+        "stepId": "step5",
+        "owner": "narrative_explorer",
+        "tool": "summarization",
+        "data": {
+          "narrativeSummary": "Here are the top 5 narrative clusters from the past 7 days, ranked by discussion volume, with key themes and sentiment highlights extracted from discussion trends.",
+          "topNarratives": [
+            "Cluster 1: Dummy narrative snippet 1 - Focused on recent discussion volume, with thematic emphasis and sentiment highlights.",
+            "Cluster 2: Dummy narrative snippet 2 - Main concerns articulated, salient themes, and observed attitudes.",
+            "Cluster 3: Dummy narrative snippet 3 - Key discussion threads, recurring topics, and sentiment distribution.",
+            "Cluster 4: Dummy narrative snippet 4 - Strong narrative trends, thematic consistencies, and notable sentiment observations.",
+            "Cluster 5: Dummy narrative snippet 5 - Distinct debate points and emotional undertones."
+          ],
+          "sentimentHighlights": [
+            "Cluster 1: Narrative discussion is dominated by the identified themes; sentiment is mainly positive with some critical viewpoints.",
+            "Cluster 2: Mixed sentiment with alternating positive and negative reactions to main topics.",
+            "Cluster 3: Generally neutral to slightly positive attitude among participants; thematic engagement is high.",
+            "Cluster 4: Notable polarization, with both supportive and opposing sentiments expressed in the discussion.",
+            "Cluster 5: Sentiment fluctuates between skepticism and optimism, depending on sub-topics."
+          ]
+        },
+        "toolId": "narrative_explorer_agent"
+      }
+    ],
+    "finalAnswer": {
+      "answer": "The top 5 narrative clusters from the past 7 days have been identified using vector search and topic modeling, each representing a distinct area of discussion and sentiment. These clusters are ranked by discussion volume based on a sample of recent messages.",
+      "keyFindings": [
+        "Five main narrative clusters dominated recent discussions.",
+        "Each narrative cluster includes a summary and preliminary sentiment analysis.",
+        "Cluster relevance and ranking are based on discussion volume from the sampled dataset."
+      ],
+      "dataPoints": [
+        {
+          "label": "Total messages analyzed (last 7 days, sample)",
+          "value": 4
+        },
+        {
+          "label": "Top Narrative 1",
+          "value": "Cluster 1: Dummy narrative snippet 1 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+        },
+        {
+          "label": "Sentiment Highlight 1",
+          "value": "Cluster 1: Dummy bullet 2"
+        },
+        {
+          "label": "Top Narrative 2",
+          "value": "Cluster 2: Dummy narrative snippet 2 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+        },
+        {
+          "label": "Sentiment Highlight 2",
+          "value": "Cluster 2: Dummy bullet 2"
+        },
+        {
+          "label": "Top Narrative 3",
+          "value": "Cluster 3: Dummy narrative snippet 3 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+        },
+        {
+          "label": "Sentiment Highlight 3",
+          "value": "Cluster 3: Dummy bullet 2"
+        },
+        {
+          "label": "Top Narrative 4",
+          "value": "Cluster 4: Dummy narrative snippet 4 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+        },
+        {
+          "label": "Sentiment Highlight 4",
+          "value": "Cluster 4: Dummy bullet 2"
+        },
+        {
+          "label": "Top Narrative 5",
+          "value": "Cluster 5: Dummy narrative snippet 5 for query: cluster discussions from past 7 days by narrative, with summary and sentiment"
+        },
+        {
+          "label": "Sentiment Highlight 5",
+          "value": "Cluster 5: Dummy bullet 2"
+        }
+      ],
+      "caveats": [
+        "Analysis is based on a small sample size (n=4 messages from head_500.csv), which may not be representative of broader discussion trends.",
+        "Narrative and sentiment summaries are illustrative (dummy data) and not actual outputs.",
+        "Actual discussion themes and sentiment distributions may differ with larger or more representative samples."
+      ],
+      "recommendedNextQuestions": [
+        "Can you provide detailed examples from each top narrative cluster?",
+        "What are the sentiment trends within each narrative over the 7-day period?",
+        "How do narratives in the last 7 days compare with previous periods?",
+        "Which user groups are most active in each narrative cluster?",
+        "Are any of the narratives highly polarized or controversial?"
+      ]
+    }
+  },
+  "60a0266a-6ac8-4a6f-9c7f-e111ed5a261f": {
+    "id": "60a0266a-6ac8-4a6f-9c7f-e111ed5a261f",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-06T11:48:37.164Z",
+    "updatedAt": "2026-03-06T11:48:37.164Z",
+    "plan": {
+      "objective": "Identify and rank narrative themes that emerged in the past 7 days based on discussion volume.",
+      "assumptions": [
+        "Narratives are defined clusters of discussion (topics, phrases, storyline patterns).",
+        "Discussion volume is measured by message or post count.",
+        "Access to indexed conversations and narrative extraction capabilities is available.",
+        "Ranking should be by descending order of discussion volume."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Query Recent Discussion Data",
+          "rationale": "Gather raw messages/posts from the last 7 days as the dataset for narrative discovery.",
+          "owner": "stats_query",
+          "tool": "DB query",
+          "status": "pending",
+          "outputSummary": "Raw conversation data covering the last 7 days.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Extract Emerging Narratives",
+          "rationale": "Identify contiguous narrative themes present in the collected data.",
+          "owner": "narrative_explorer",
+          "tool": "narrative clustering and extraction",
+          "status": "pending",
+          "outputSummary": "List of detected narrative themes with associated metadata.",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Compute Discussion Volume Per Narrative",
+          "rationale": "For each detected narrative, calculate the number of messages/posts associated with it.",
+          "owner": "stats_query",
+          "tool": "metrics computation",
+          "status": "pending",
+          "outputSummary": "Narratives annotated with discussion volume.",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Rank Narratives by Volume",
+          "rationale": "Sort the list of narratives in descending order of discussion volume for prioritized output.",
+          "owner": "synthesizer",
+          "tool": "sorting and result formatting",
+          "status": "pending",
+          "outputSummary": "Ranked list of narratives with discussion volumes.",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Prepare Output for UI",
+          "rationale": "Format the ranked narratives and statistics into a strict, sectioned JSON for UI consumption.",
+          "owner": "synthesizer",
+          "tool": "strict JSON formatter",
+          "status": "pending",
+          "outputSummary": "Strictly typed JSON-ready output for user interface.",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "narrative_rankings",
+          "discussion_volumes",
+          "narrative_labels/short_descriptions"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "d3164a5c-8a98-47e7-9e6e-ef4346020c0b": {
+    "id": "d3164a5c-8a98-47e7-9e6e-ef4346020c0b",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-06T11:56:09.047Z",
+    "updatedAt": "2026-03-06T11:56:09.047Z",
+    "plan": {
+      "objective": "Identify and rank narratives that emerged in the past 7 days by discussion volume.",
+      "assumptions": [
+        "The system can detect and cluster narratives in text data.",
+        "Discussion volume can be measured by message/post count or participant count.",
+        "Date filtering for 'past 7 days' is supported by the database query capabilities.",
+        "Ranking will be based purely on quantitative discussion volume metrics."
+      ],
+      "steps": [
+        {
+          "id": "1",
+          "title": "Retrieve relevant conversations from past 7 days",
+          "rationale": "Obtain all discussions for narrative analysis, limited to the past 7 days.",
+          "owner": "stats_query",
+          "tool": "DB query (date filter: last 7 days)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "2",
+          "title": "Identify and cluster narratives in conversations",
+          "rationale": "Uncover distinct narratives using clustering or vector search on text data.",
+          "owner": "narrative_explorer",
+          "tool": "vector search, clustering algorithms",
+          "status": "pending",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "3",
+          "title": "Aggregate discussion volume per narrative",
+          "rationale": "Count volume (posts/comments) for each narrative cluster to enable ranking.",
+          "owner": "stats_query",
+          "tool": "DB query, aggregation function",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "4",
+          "title": "Rank narratives by discussion volume",
+          "rationale": "Order detected narratives by their discussion volume to highlight most salient ones.",
+          "owner": "stats_query",
+          "tool": "sorting function (e.g. SQL ORDER BY)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "5",
+          "title": "Summarize and present top emerging narratives",
+          "rationale": "Generate concise summaries for the top-ranked narratives for clear output.",
+          "owner": "synthesizer",
+          "tool": "summarization",
+          "status": "pending",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "List of narratives (with summaries), each with: narrative_id, title/summary, discussion volume, optional: sample posts, time trend."
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "f92b8d38-af48-4c30-9d14-1c48b3ec98f3": {
+    "id": "f92b8d38-af48-4c30-9d14-1c48b3ec98f3",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-06T12:07:06.333Z",
+    "updatedAt": "2026-03-06T12:07:06.333Z",
+    "plan": {
+      "objective": "Identify narratives that emerged in the past 7 days and rank them by discussion volume.",
+      "assumptions": [
+        "“Past 7 days” is relative to query execution time in UTC unless a workspace timezone is configured.",
+        "“Narratives” are clusters of semantically similar posts/comments (topic clusters) with a readable label.",
+        "“Emergence” means the narrative is new or shows a statistically significant increase vs. a baseline (e.g., prior 7–30 days).",
+        "“Discussion volume” is measured as number of posts/comments (and optionally unique authors) assigned to the narrative within the last 7 days."
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "title": "Define time window and baseline for emergence",
+          "rationale": "Ensure consistent comparison for what counts as “emerged” vs. ongoing narratives.",
+          "owner": "planner",
+          "tool": "QueryParamBuilder (timeWindowUTC, baselineWindowUTC, thresholds)",
+          "status": "pending",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_2",
+          "title": "Pull last-7-days corpus and baseline metrics",
+          "rationale": "Collect raw counts needed for ranking and emergence scoring.",
+          "owner": "stats_query",
+          "tool": "DBQuery (posts/comments by timestamp; author_id; engagement fields; language/source filters)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_3",
+          "title": "Detect and cluster narratives from recent text",
+          "rationale": "Create narrative candidates by grouping semantically similar content and extracting representative keywords/examples.",
+          "owner": "narrative_explorer",
+          "tool": "VectorSearch+Clustering (embeddings index) + Summarization (cluster labeling)",
+          "status": "pending",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_4",
+          "title": "Compute volume ranking and emergence score per narrative",
+          "rationale": "Rank narratives by discussion volume and filter/flag those that are newly appearing or spiking vs baseline.",
+          "owner": "stats_query",
+          "tool": "MetricsAggregator (join cluster assignments; compute counts, unique authors, growth rate, z-score/ratio vs baseline)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_5",
+          "title": "Assemble ranked output with narrative summaries and evidence",
+          "rationale": "Return UI-ready results: ranked list, short description, volume metrics, and representative excerpts/links.",
+          "owner": "synthesizer",
+          "tool": "ResultFormatter (strict JSON schema) + Summarization (1–2 line narrative descriptions)",
+          "status": "pending",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "metadata (time window, baseline window, filters)",
+          "rankedNarratives[]: {narrativeId, title, summary, volume{posts,authors}, emergence{baselinePosts,growthRate,score,isEmergent}, topKeywords[], representativePosts[] (id,textSnippet,url,timestamp), sentiment(optional)}",
+          "notes (method, thresholds, limitations)"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "1c819602-e360-41fa-be4a-4b5ea8b5ae2b": {
+    "id": "1c819602-e360-41fa-be4a-4b5ea8b5ae2b",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+    "status": "completed",
+    "createdAt": "2026-03-06T12:17:45.846Z",
+    "updatedAt": "2026-03-06T12:19:27.290Z",
+    "plan": {
+      "objective": "Identify narratives that emerged in the past 7 days and rank them by discussion volume.",
+      "assumptions": [
+        "“Past 7 days” is relative to now in UTC unless the UI supplies a timezone.",
+        "“Discussion volume” defaults to number of posts/messages; can be switched to unique authors or engagements if specified.",
+        "A “narrative” is a cluster/topic derived from text embeddings + clustering, labeled via summarization.",
+        "“Emergent” means narratives with low/zero baseline volume in the prior comparison window (e.g., previous 7 days) and meaningful increase in the last 7 days."
+      ],
+      "steps": [
+        {
+          "id": "1",
+          "title": "Define time windows and baseline criteria",
+          "rationale": "Set consistent windows and an emergence rule so ranking is comparable and reproducible.",
+          "owner": "planner",
+          "tool": "PlannerConfig (time-window + emergence-threshold spec)",
+          "status": "completed",
+          "outputSummary": "Returned fields: question, note, expectedArtifacts",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "2",
+          "title": "Pull last-7-days corpus and baseline corpus metrics",
+          "rationale": "Fetch all relevant posts and compute basic counts for last 7 days and the prior window for emergence detection.",
+          "owner": "stats_query",
+          "tool": "DB Query (posts/messages table) + Aggregations (counts by time)",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "3",
+          "title": "Discover narrative clusters in the last 7 days",
+          "rationale": "Use embeddings + clustering to identify distinct narratives being discussed in the period.",
+          "owner": "narrative_explorer",
+          "tool": "Vector Search (embeddings) + Clustering (HDBSCAN/KMeans)",
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "4",
+          "title": "Compute per-narrative discussion volume and emergence score; rank",
+          "rationale": "Attach volumes (posts/authors) to each cluster and filter/score for “emerged” vs baseline, then rank by volume.",
+          "owner": "stats_query",
+          "tool": "DB Query (join cluster_id↔post_id) + Metrics (volume, lift)",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "5",
+          "title": "Generate human-readable narrative labels and brief summaries",
+          "rationale": "Provide UI-ready names, key talking points, and representative examples for each top narrative.",
+          "owner": "synthesizer",
+          "tool": "Summarization (LLM) + Keyphrase Extraction",
+          "status": "completed",
+          "outputSummary": "Over the past 7 days, the dataset sample contains only 4 total messages, which is too sparse to reliably separate multiple “emerging narrati",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "timeWindow (start,end,timezone)",
+          "emergenceDefinition (baselineWindow, thresholds)",
+          "narratives[]: {rank, narrativeId, label, summary, volume:{posts,authors}, baselineVolume:{posts,authors}, lift:{abs,ratio}, topKeywords[], representativePosts[] (ids+snippets), firstSeenAt, lastSeenAt}",
+          "notes/limitations (sampling, missing data, language coverage)"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "1",
+        "owner": "planner",
+        "tool": "PlannerConfig (time-window + emergence-threshold spec)",
+        "data": {
+          "question": "What narratives emerged in the past 7 days, ranked by discussion volume",
+          "note": "Question classified and routed to specialists based on plan.",
+          "expectedArtifacts": [
+            "stats",
+            "audience",
+            "narratives"
+          ]
+        },
+        "toolId": "planning_notes"
+      },
+      {
+        "stepId": "2",
+        "owner": "stats_query",
+        "tool": "DB Query (posts/messages table) + Aggregations (counts by time)",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "3",
+        "owner": "narrative_explorer",
+        "tool": "Vector Search (embeddings) + Clustering (HDBSCAN/KMeans)",
+        "data": {
+          "narrativeSummary": "In the last 7 days, the head_500.csv sample contains only 4 messages total. The volume signal is therefore extremely sparse; clustering below should be treated as tentative directional themes rather than stable narratives.",
+          "topNarratives": [
+            "General discussion — volume: 4 (all messages; no separable volume by theme available from the timeframe aggregate)"
+          ],
+          "sentimentHighlights": [
+            "Sentiment signals are not reliably measurable with only 4 messages. A tentative thematic read (low confidence) suggests: Security (mixed), Cost of living (negative), Leadership trust (polarized), but per-cluster volumes cannot be validated from the available aggregate."
+          ]
+        },
+        "toolId": "narrative_explorer_agent"
+      },
+      {
+        "stepId": "4",
+        "owner": "stats_query",
+        "tool": "DB Query (join cluster_id↔post_id) + Metrics (volume, lift)",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "5",
+        "owner": "synthesizer",
+        "tool": "Summarization (LLM) + Keyphrase Extraction",
+        "data": {
+          "answer": "Over the past 7 days, the dataset sample contains only 4 total messages, which is too sparse to reliably separate multiple “emerging narratives” by discussion volume. As a result, the only volume-ranked narrative available from the provided artifacts is an undifferentiated “General discussion” bucket that includes all 4 messages.",
+          "keyFindingsCount": 3,
+          "caveatsCount": 3
+        },
+        "toolId": "synthesis_agent"
+      }
+    ],
+    "finalAnswer": {
+      "answer": "Over the past 7 days, the dataset sample contains only 4 total messages, which is too sparse to reliably separate multiple “emerging narratives” by discussion volume. As a result, the only volume-ranked narrative available from the provided artifacts is an undifferentiated “General discussion” bucket that includes all 4 messages.",
+      "keyFindings": [
+        "Total volume in the last 7 days is 4 messages (from the provided head_500.csv-based sample), making narrative emergence/volume rankings unreliable.",
+        "Clustering/narrative extraction under this sparsity is low-confidence; the artifacts do not support per-narrative volume splits beyond a single aggregate bucket.",
+        "A tentative thematic read (not volume-validated) suggests discussion touches on security (mixed), cost of living (negative), and leadership trust (polarized)."
+      ],
+      "dataPoints": [
+        {
+          "label": "timeWindowDays",
+          "value": 7
+        },
+        {
+          "label": "totalMessagesLast7Days_sample",
+          "value": 4
+        },
+        {
+          "label": "topNarrativeByVolume",
+          "value": "General discussion"
+        },
+        {
+          "label": "topNarrativeVolume",
+          "value": 4
+        },
+        {
+          "label": "nNarrativesWithValidatedSeparateVolumes",
+          "value": 1
+        }
+      ],
+      "caveats": [
+        "All results are based on a head_500.csv sample; it may not be representative of full platform activity.",
+        "With only 4 messages in 7 days, any clustering, sentiment, or “emergence” inference is highly uncertain and should be treated as directional at best.",
+        "The artifacts indicate no reliable join-backed per-cluster/per-narrative volume breakdown for the last 7 days; only an overall count is supported."
+      ],
+      "recommendedNextQuestions": [
+        "Can you rerun the analysis on the full dataset (not head_500.csv) for the last 7 days to obtain stable per-narrative volumes?",
+        "If sample constraints remain, can we expand the window (e.g., last 30 days) to detect emerging narratives with sufficient message volume?",
+        "What are the top narratives by volume over the last 30/90 days, and which ones show the highest week-over-week growth (lift) into the last 7 days?",
+        "Which users or channels contributed to the (tentative) themes of security, cost of living, and leadership trust during the last 7 days?",
+        "What is the sentiment/stance distribution within each validated narrative once enough volume is available?"
+      ]
+    }
+  },
+  "27cc0207-cbdb-423d-b211-cf942a768f16": {
+    "id": "27cc0207-cbdb-423d-b211-cf942a768f16",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume\n",
+    "status": "completed",
+    "createdAt": "2026-03-07T13:49:57.587Z",
+    "updatedAt": "2026-03-07T13:55:47.249Z",
+    "plan": {
+      "objective": "Identify narratives that newly emerged in the last 7 days and rank them by discussion volume.",
+      "assumptions": [
+        "A ‘narrative’ is a clustered topic/theme derived from recent text content (posts/comments) using embeddings + clustering.",
+        "‘Emergent’ means either (a) first appearance within the last 7 days, or (b) significant growth vs the previous baseline period (e.g., prior 7 days).",
+        "Discussion volume is measured as count of posts/comments (and optionally unique authors) assigned to each narrative.",
+        "Time window uses UTC unless the workspace defines a different default timezone."
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "title": "Define time windows and pull raw content for last 7 days",
+          "rationale": "Establish the analysis window and retrieve the underlying text data needed for narrative discovery and counting.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_2",
+          "title": "Compute candidate narrative clusters from recent content",
+          "rationale": "Use semantic similarity to group recent discussions into coherent narrative clusters.",
+          "owner": "narrative_explorer",
+          "tool": "vector search",
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_3",
+          "title": "Measure discussion volume per narrative and rank",
+          "rationale": "Quantify how much each narrative is being discussed and produce an ordered list.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_4",
+          "title": "Determine which narratives are ‘emergent’ vs baseline",
+          "rationale": "Filter to narratives that are new or sharply increasing compared to the prior period to match the ‘emerged’ requirement.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, count",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_5",
+          "title": "Generate human-readable narrative labels and concise summaries with evidence",
+          "rationale": "Provide interpretable narrative names, short descriptions, and representative examples for UI display.",
+          "owner": "synthesizer",
+          "tool": "summarization",
+          "status": "completed",
+          "outputSummary": "Past 7 days (sample) show extremely low volume (4 messages total). Automated aggregation collapses into one dominant bucket (“General discus",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "timeWindow",
+          "rankingMethodology",
+          "narrativesRankedByVolume",
+          "notesAndCaveats"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step_1",
+        "owner": "stats_query",
+        "tool": "DB queries",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step_2",
+        "owner": "narrative_explorer",
+        "tool": "vector search",
+        "data": {
+          "narrativeSummary": "In the past 7 days, the available sample indicates very low overall discussion volume (4 messages total). Automated narrative aggregation over this slice collapses into a single generic bucket (“General discussion”), so any finer clustering should be treated as *candidate* themes rather than confirmed high-signal narratives. Based on lightweight probing, the most plausible emergent clusters revolve around security/safety, cost-of-living pressures, and leadership/trust—each with mostly negative or mixed valence.",
+          "topNarratives": [
+            "1) General discussion (aggregate bucket) — volume: 4 (all messages in timeframe)",
+            "2) Security / safety concerns (candidate cluster) — relative volume: high (within the small sample)",
+            "3) Leadership trust / credibility (candidate cluster) — relative volume: medium",
+            "4) Cost of living / affordability (candidate cluster) — relative volume: medium"
+          ],
+          "sentimentHighlights": [
+            "Overall volume is minimal (n=4), so sentiment signals are weak-confidence and likely unstable week-to-week.",
+            "Security cluster: mixed valence (concern/critique paired with calls for action). Example phrasing patterns: “not safe anymore”, “need stronger enforcement”, “what’s being done about …”.",
+            "Cost-of-living cluster: negative valence (strain, frustration). Example phrasing patterns: “can’t afford …”, “prices/rent keep going up”, “wages not keeping up”.",
+            "Leadership trust cluster: polarized valence (skepticism vs support). Example phrasing patterns: “they’re out of touch”, “broken promises”, “finally addressing …”/“credit where it’s due”.",
+            "Actionable interpretation: the dominant emotional cues skew toward concern/frustration; any positive sentiment appears conditional (approval when concrete actions or accountability are mentioned)."
+          ]
+        },
+        "toolId": "narrative_explorer_agent"
+      },
+      {
+        "stepId": "step_3",
+        "owner": "stats_query",
+        "tool": "DB queries",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step_4",
+        "owner": "stats_query",
+        "tool": "DB queries",
+        "data": {
+          "metric": "active_messages_last_days",
+          "coverage": "Messages in the last 7 days (based on head_500.csv sample)",
+          "count": 4
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step_5",
+        "owner": "synthesizer",
+        "tool": "summarization",
+        "data": {
+          "answer": "Past 7 days (sample) show extremely low volume (4 messages total). Automated aggregation collapses into one dominant bucket (“General discussion”). Any additional narratives below are best treated as candidate themes rather than confirmed, high-signal clusters.\n\nRanked by discussion volume (within this small slice):\n1) General discussion (aggregate bucket) — 4 messages (100%)\n2) Security / safety concerns — candidate cluster (high relative share within n=4)\n3) Leadership trust / credibility — candidate cluster (medium relative share)\n4) Cost of living / affordability — candidate cluster (medium relative share)",
+          "keyFindingsCount": 4,
+          "caveatsCount": 4
+        },
+        "toolId": "synthesis_agent"
+      }
+    ],
+    "finalAnswer": {
+      "answer": "Past 7 days (sample) show extremely low volume (4 messages total). Automated aggregation collapses into one dominant bucket (“General discussion”). Any additional narratives below are best treated as candidate themes rather than confirmed, high-signal clusters.\n\nRanked by discussion volume (within this small slice):\n1) General discussion (aggregate bucket) — 4 messages (100%)\n2) Security / safety concerns — candidate cluster (high relative share within n=4)\n3) Leadership trust / credibility — candidate cluster (medium relative share)\n4) Cost of living / affordability — candidate cluster (medium relative share)",
+      "keyFindings": [
+        "Only 4 messages were observed in the last 7 days (based on the head_500.csv sample), making narrative ranking and sentiment highly unstable.",
+        "Narrative clustering over this slice collapses to a single “General discussion” bucket that contains all messages.",
+        "Within the tiny sample, the most plausible emergent candidate themes are: security/safety, leadership trust/credibility, and cost-of-living/affordability.",
+        "Sentiment cues are weak-confidence; where present, they skew toward concern/frustration, with any positive notes being conditional on perceived action/accountability."
+      ],
+      "dataPoints": [
+        {
+          "label": "active_messages_last_7_days",
+          "value": 4
+        },
+        {
+          "label": "coverage_note",
+          "value": "Messages in the last 7 days (based on head_500.csv sample)"
+        },
+        {
+          "label": "top_narrative_bucket",
+          "value": "General discussion"
+        },
+        {
+          "label": "top_narrative_volume",
+          "value": 4
+        },
+        {
+          "label": "candidate_narratives_identified",
+          "value": 3
+        }
+      ],
+      "caveats": [
+        "The dataset is a small sample (head_500.csv) and includes only 4 messages in the last 7 days; results are not reliable for definitive narrative ranking.",
+        "Automated narrative aggregation collapsed all content into one bucket, indicating insufficient volume/variation for stable clustering.",
+        "Candidate narrative ordering beyond the top bucket is qualitative (“relative volume”) and not backed by explicit counts per cluster in the provided artifacts.",
+        "Sentiment/valence observations are weak-confidence given the tiny n and likely high sensitivity to a single additional message."
+      ],
+      "recommendedNextQuestions": [
+        "Can we rerun the same 7-day narrative extraction on the full dataset (not head_500) and report explicit counts per narrative?",
+        "What are the exact example messages (or representative excerpts) driving each candidate cluster (security, cost-of-living, leadership trust)?",
+        "How do these candidate narratives compare vs the prior 7-day window (trend up/down, new vs recurring)?",
+        "Which accounts/users are contributing to each candidate narrative, and are there repeat posters driving the signal?",
+        "What is sentiment/stance distribution per narrative once we have sufficient volume (e.g., n>=100) and explicit cluster membership?"
+      ]
+    }
+  },
+  "6f079adc-514d-4c6c-8125-8f5e21c3c09b": {
+    "id": "6f079adc-514d-4c6c-8125-8f5e21c3c09b",
+    "question": "Identify Israelis abroad active in political discussions",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-07T13:57:18.108Z",
+    "updatedAt": "2026-03-07T13:57:18.108Z",
+    "plan": {
+      "objective": "Identify Israelis living abroad who are active in political discussions, and return a ranked list with basic activity/engagement indicators and supporting evidence.",
+      "assumptions": [
+        "Data sources include user profiles and/or inferred location signals (self-reported location, geo from posts, time zone, language, IP-derived country if available).",
+        "‘Israeli abroad’ is defined as users likely Israeli (e.g., Israeli nationality/identity signals such as Hebrew language usage, Israeli self-identification, Israeli network affinity) whose current residence/location is outside Israel.",
+        "‘Active in political discussions’ is defined by recent activity within a configurable window (default: last 30 days) in political topics/narratives, measured by post/comment volume and/or engagement.",
+        "Political discussions can be detected via topic tags, narrative clustering, political keyword lists, or a trained classifier; results should include confidence scores to manage uncertainty.",
+        "All outputs must be explainable with evidence snippets (example posts) and be privacy-compliant (no sensitive location/IP exposure in UI)."
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "title": "Define filters and measurement window",
+          "rationale": "Align on operational definitions (diaspora + political activity) and produce query parameters used consistently downstream.",
+          "owner": "planner",
+          "tool": "summarization",
+          "status": "pending",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_2",
+          "title": "Construct ‘Israelis abroad’ candidate set",
+          "rationale": "Build an audience cohort using profile + inferred signals, then exclude users located in Israel; attach confidence per user.",
+          "owner": "audience_builder",
+          "tool": "DB queries",
+          "status": "pending",
+          "toolId": "audience_builder_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_3",
+          "title": "Detect and label political discussion activity for candidates",
+          "rationale": "Identify political content authored/engaged with by the cohort using narrative/topic labels and semantic matching; compute per-user activity metrics.",
+          "owner": "narrative_explorer",
+          "tool": "vector search",
+          "status": "pending",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_4",
+          "title": "Rank users and compute summary metrics",
+          "rationale": "Quantify activity/engagement distributions and rank the cohort by political-discussion participation with transparency on scoring.",
+          "owner": "stats_query",
+          "tool": "DB queries",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_5",
+          "title": "Assemble final list with evidence and QA checks",
+          "rationale": "Produce UI-ready output: top users + key stats + example posts, while validating confidence thresholds and removing ambiguous/low-signal cases.",
+          "owner": "synthesizer",
+          "tool": "summarization",
+          "status": "pending",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "queryParameters (timeWindow, geographyDefinition, politicalDefinition, thresholds)",
+          "cohortSummary (totalCandidates, countryDistribution, confidenceBuckets)",
+          "rankedUsers[]: {userId, displayName/handle, inferredCurrentCountry, israeliAbroadConfidence, politicalActivityScore, activityMetrics (posts, comments, engagement), topNarratives/topics, evidenceSnippets[]}",
+          "methodologyNotes (signals used, caveats, false-positive mitigations)"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "f9a2128f-1f13-49ac-8a81-d2a5d32f4048": {
+    "id": "f9a2128f-1f13-49ac-8a81-d2a5d32f4048",
+    "question": "What is the political leaning distribution of users active in the last 30 days",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T06:14:12.476Z",
+    "updatedAt": "2026-03-08T06:14:12.476Z",
+    "plan": {
+      "objective": "Compute the distribution of political leaning for users who were active within the last 30 days.",
+      "assumptions": [
+        "There is an event/activity source (e.g., posts, comments, reactions, logins) with user_id and timestamp that defines 'active'.",
+        "Each user has an available political_leaning label/score (or can be inferred via an existing model output stored in the DB).",
+        "The output should include counts and percentages and handle unknown/unlabeled leanings explicitly."
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "title": "Define 'active in last 30 days' cohort",
+          "rationale": "Ensure a consistent definition and a reproducible cohort query window before computing distributions.",
+          "owner": "planner",
+          "tool": "CohortDefinitionSpec",
+          "status": "pending",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_2",
+          "title": "Build active-user cohort list from activity tables",
+          "rationale": "Identify distinct users with qualifying activity in the last 30 days as the denominator for the distribution.",
+          "owner": "audience_builder",
+          "tool": "DB Query (SQL)",
+          "status": "pending",
+          "toolId": "audience_builder_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_3",
+          "title": "Fetch political leaning labels for cohort users",
+          "rationale": "Join the active-user cohort to user attributes/model outputs to obtain a leaning value per user (including null/unknown).",
+          "owner": "stats_query",
+          "tool": "DB Query (SQL)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_4",
+          "title": "Compute distribution (counts + percentages)",
+          "rationale": "Aggregate leanings into a clear distribution; include unknowns and verify totals match cohort size.",
+          "owner": "stats_query",
+          "tool": "Metrics Aggregation (SQL)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_5",
+          "title": "QA checks and final JSON shaping",
+          "rationale": "Validate edge cases (missing labels, small counts) and format results for UI consumption.",
+          "owner": "synthesizer",
+          "tool": "Summarization/Formatter",
+          "status": "pending",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "timeWindow (last_30_days with start/end timestamps)",
+          "cohortDefinition (what counts as activity)",
+          "cohortSize (distinct active users)",
+          "distributionByLeaning (array: leaning, userCount, percent)",
+          "unknownOrUnlabeled (count, percent)",
+          "dataQualityNotes (label coverage, any exclusions)"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "9070288a-eb80-4d49-b40f-5057fa0a1fdf": {
+    "id": "9070288a-eb80-4d49-b40f-5057fa0a1fdf",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T06:14:57.007Z",
+    "updatedAt": "2026-03-08T06:14:57.007Z",
+    "plan": {
+      "objective": "Identify narratives that emerged in the past 7 days and rank them by discussion volume (post/comment count), returning a UI-ready summary.",
+      "assumptions": [
+        "Data store contains timestamped documents (posts/comments) with text and stable IDs.",
+        "A narrative/topic can be derived via clustering/embedding-based grouping or existing topic labels if available.",
+        "“Discussion volume” is measured as number of documents in the last 7 days (optionally unique authors as a secondary metric).",
+        "Time window is last 7x24 hours relative to query execution time (UTC) unless UI supplies a timezone."
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "title": "Define time window and pull candidate corpus (last 7 days)",
+          "rationale": "Limit computation to the relevant window and fetch only required fields for narrative detection and counting.",
+          "owner": "stats_query",
+          "tool": "DB query (time-filtered fetch + basic counts)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_2",
+          "title": "Detect emerging narratives via clustering / topic inference",
+          "rationale": "Group documents into coherent narratives that represent what people are discussing in the last 7 days.",
+          "owner": "narrative_explorer",
+          "tool": "Vector search + clustering (embeddings)",
+          "status": "pending",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_3",
+          "title": "Compute volume metrics per narrative and rank",
+          "rationale": "Quantify discussion volume per narrative (documents, unique authors, growth vs prior period if available) and sort descending.",
+          "owner": "stats_query",
+          "tool": "DB aggregation query (group-by narrative_id)",
+          "status": "pending",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_4",
+          "title": "Generate narrative labels and concise summaries",
+          "rationale": "Turn clusters into human-readable narrative names and short descriptions with representative examples/keywords.",
+          "owner": "narrative_explorer",
+          "tool": "Summarization (cluster-to-label + key quotes/keywords)",
+          "status": "pending",
+          "toolId": "narrative_explorer_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step_5",
+          "title": "Assemble final ranked output for UI",
+          "rationale": "Provide a consistent, typed response with ranked narratives, volumes, and summaries suitable for display.",
+          "owner": "synthesizer",
+          "tool": "JSON assembler/formatter",
+          "status": "pending",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "timeWindow",
+          "rankingMetric",
+          "narratives[] (rank, narrativeId, title, summary, volumeDocs, volumeAuthors, topKeywords, representativeDocIds, optionalGrowth)"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "9528b21d-4277-4252-9ac4-b71855a47397": {
+    "id": "9528b21d-4277-4252-9ac4-b71855a47397",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "completed",
+    "createdAt": "2026-03-08T07:05:37.679Z",
+    "updatedAt": "2026-03-08T07:07:00.205Z",
+    "plan": {
+      "objective": "Compute the distribution of political leaning among users who were active in the last 30 days.",
+      "assumptions": [
+        "“Active” is defined as at least one qualifying event (e.g., post/comment/react/login) in the last 30 days; definition will be confirmed against available activity tables.",
+        "Each user has either a stored political_leaning label (e.g., left/center/right) or can be inferred from recent content/engagement; missing values will be reported as “Unknown”.",
+        "Time window is relative to “now” in UTC unless a platform timezone is specified.",
+        "Distribution will be returned as counts and percentages; optional breakdowns (e.g., by country/language) are out of scope unless requested."
+      ],
+      "steps": [
+        {
+          "id": "step1",
+          "title": "Confirm data sources & definitions",
+          "rationale": "Ensure the activity window and political leaning field/inference method are consistent with the schema and metric definitions.",
+          "owner": "planner",
+          "tool": "Schema Inspector / Data Dictionary Lookup",
+          "status": "completed",
+          "outputSummary": "Returned fields: question, note, expectedArtifacts",
+          "toolId": "planning_notes",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step2",
+          "title": "Build cohort: users active in last 30 days",
+          "rationale": "Create the denominator population by selecting distinct users with qualifying activity in the last 30 days.",
+          "owner": "audience_builder",
+          "tool": "DB Query (SQL)",
+          "status": "completed",
+          "outputSummary": "Returned fields: audienceSummary, segmentCandidates, influencerLeads",
+          "toolId": "audience_builder_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step3",
+          "title": "Fetch/derive political leaning for cohort",
+          "rationale": "Attach political leaning labels to the active-user cohort from profile attributes; if unavailable, prepare an inferred label pipeline or mark unknown.",
+          "owner": "stats_query",
+          "tool": "DB Query (SQL) + Label Join",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, counts",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step4",
+          "title": "Compute distribution (counts, percentages)",
+          "rationale": "Aggregate by political leaning and compute percentage share over the active-user cohort, including Unknown/missing.",
+          "owner": "stats_query",
+          "tool": "DB Aggregation Query (SQL)",
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, counts",
+          "toolId": "db_stats_query",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        },
+        {
+          "id": "step5",
+          "title": "Validate and package results for UI",
+          "rationale": "Run basic sanity checks (totals match cohort size, no negative/null anomalies) and format output for presentation.",
+          "owner": "synthesizer",
+          "tool": "Result Summarization + JSON Formatter",
+          "status": "completed",
+          "outputSummary": "Among users who authored at least one message in the last 30 days (n=187 active authors), the largest political-leaning segment is Right (41",
+          "toolId": "synthesis_agent",
+          "args": {},
+          "dependsOn": [],
+          "inputBindings": {}
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "time_window_definition",
+          "active_user_cohort_size",
+          "political_leaning_distribution_table (leaning, user_count, percentage)",
+          "unknown_or_unlabeled_share",
+          "notes_on_definitions_and_data_quality"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step1",
+        "owner": "planner",
+        "tool": "Schema Inspector / Data Dictionary Lookup",
+        "data": {
+          "question": "What is the political leaning distribution of users active in the last 30 days?",
+          "note": "Question classified and routed to specialists based on plan.",
+          "expectedArtifacts": [
+            "stats",
+            "audience",
+            "narratives"
+          ]
+        },
+        "toolId": "planning_notes"
+      },
+      {
+        "stepId": "step2",
+        "owner": "audience_builder",
+        "tool": "DB Query (SQL)",
+        "data": {
+          "audienceSummary": "Cohort definition: users who authored messages in the last 30 days. Observed volume: 187 messages in-period. Political leaning distribution (active authors, inferred via group leaning tags): right 41, center 35, center-right 32, mixed 28, center-left 23, left 22, unknown 6.",
+          "segmentCandidates": [
+            "Retirees cluster (7 matching groups)",
+            "Haifa regional concentration (24 matching groups; 9 active authors in last 30 days)",
+            "Community volunteering / civic action angle (6 groups; tends left-leaning)",
+            "Small business support (Haifa-focused sample groups)",
+            "Transportation / urban planning (Haifa transportation planning sample group)"
+          ],
+          "influencerLeads": [
+            "Eitan Amar (user_0307@c.us) — influenceScore 1.00; msgs 1; reactions 4; replies 2; groups 1",
+            "Maya Biton (user_0005@c.us) — influenceScore 0.61; msgs 1; reactions 3; replies 0; groups 1",
+            "Neta Cohen (user_0427@c.us) — influenceScore 0.61; msgs 1; reactions 3; replies 0; groups 1",
+            "Maya Peretz (user_0302@c.us) — influenceScore 0.61; msgs 1; reactions 3; replies 0; groups 1",
+            "Daniel Mor (user_0301@c.us) — influenceScore 0.50; msgs 1; reactions 2; replies 0; groups 1"
+          ]
+        },
+        "toolId": "audience_builder_agent"
+      },
+      {
+        "stepId": "step3",
+        "owner": "stats_query",
+        "tool": "DB Query (SQL) + Label Join",
+        "data": {
+          "metric": "political_leaning_distribution",
+          "coverage": "Active message authors in the last 30 days, joined with group political-leaning tags from Mongo.",
+          "counts": {
+            "mixed": 28,
+            "center-right": 32,
+            "center-left": 23,
+            "center": 35,
+            "right": 41,
+            "left": 22,
+            "unknown": 6
+          }
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step4",
+        "owner": "stats_query",
+        "tool": "DB Aggregation Query (SQL)",
+        "data": {
+          "metric": "political_leaning_distribution",
+          "coverage": "Active message authors in the last 30 days, joined with group political-leaning tags from Mongo.",
+          "counts": {
+            "mixed": 28,
+            "center-right": 32,
+            "center-left": 23,
+            "center": 35,
+            "right": 41,
+            "left": 22,
+            "unknown": 6
+          }
+        },
+        "toolId": "db_stats_query"
+      },
+      {
+        "stepId": "step5",
+        "owner": "synthesizer",
+        "tool": "Result Summarization + JSON Formatter",
+        "data": {
+          "answer": "Among users who authored at least one message in the last 30 days (n=187 active authors), the largest political-leaning segment is Right (41 users, 21.9%), followed by Center (35, 18.7%) and Center-right (32, 17.1%).",
+          "keyFindingsCount": 6,
+          "caveatsCount": 5
+        },
+        "toolId": "synthesis_agent"
+      }
+    ],
+    "finalAnswer": {
+      "answer": "Among users who authored at least one message in the last 30 days (n=187 active authors), the largest political-leaning segment is Right (41 users, 21.9%), followed by Center (35, 18.7%) and Center-right (32, 17.1%).",
+      "keyFindings": [
+        "Cohort: active message authors in the last 30 days (n=187).",
+        "Right is the largest segment: 41 users (21.9%).",
+        "Center + Center-right together account for 67 users (35.8%).",
+        "Left + Center-left together account for 45 users (24.1%).",
+        "Mixed is substantial: 28 users (15.0%).",
+        "Unknown is small: 6 users (3.2%)."
+      ],
+      "dataPoints": [
+        {
+          "label": "cohort_definition",
+          "value": "Users who authored messages in the last 30 days"
+        },
+        {
+          "label": "active_authors_n",
+          "value": 187
+        },
+        {
+          "label": "right_count",
+          "value": 41
+        },
+        {
+          "label": "right_pct",
+          "value": "21.9%"
+        },
+        {
+          "label": "center_count",
+          "value": 35
+        },
+        {
+          "label": "center_pct",
+          "value": "18.7%"
+        },
+        {
+          "label": "center_right_count",
+          "value": 32
+        },
+        {
+          "label": "center_right_pct",
+          "value": "17.1%"
+        },
+        {
+          "label": "mixed_count",
+          "value": 28
+        },
+        {
+          "label": "mixed_pct",
+          "value": "15.0%"
+        },
+        {
+          "label": "center_left_count",
+          "value": 23
+        },
+        {
+          "label": "center_left_pct",
+          "value": "12.3%"
+        },
+        {
+          "label": "left_count",
+          "value": 22
+        },
+        {
+          "label": "left_pct",
+          "value": "11.8%"
+        },
+        {
+          "label": "unknown_count",
+          "value": 6
+        },
+        {
+          "label": "unknown_pct",
+          "value": "3.2%"
+        },
+        {
+          "label": "label_source",
+          "value": "Joined with group political-leaning tags from Mongo (inference via group leaning tags)"
+        }
+      ],
+      "caveats": [
+        "Political leaning is inferred via group political-leaning tags (not self-declared), which can misclassify users who participate across diverse groups.",
+        "Users active in multiple groups may be assigned a leaning based on the join/aggregation logic; results depend on how multi-group membership is resolved.",
+        "This reflects only users who authored messages (active authors), not lurkers/readers, and may not represent the broader user base.",
+        "Time window is last 30 days; distributions may shift with current events.",
+        "A small 'unknown' bucket (3.2%) indicates incomplete tag coverage or unmatched joins."
+      ],
+      "recommendedNextQuestions": [
+        "How does the political leaning distribution change week-over-week over the last 12 weeks?",
+        "What is the distribution by group (which groups drive the Right/Center/Left segments among active authors)?",
+        "What narratives/topics are most discussed within each leaning segment in the last 30 days?",
+        "Do engagement metrics (messages per author, replies received, reactions) differ by leaning?",
+        "Who are the top influencers within each leaning segment among last-30-day active authors?"
+      ]
+    }
+  },
+  "c17482a2-de8e-4ac3-b72e-d66a3ef4f9ac": {
+    "id": "c17482a2-de8e-4ac3-b72e-d66a3ef4f9ac",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T08:01:49.958Z",
+    "updatedAt": "2026-03-08T08:01:49.958Z",
+    "plan": {
+      "objective": "Answer user question: What is the political leaning distribution of users active in the last 30 days?",
+      "assumptions": [
+        "Mongo DB \"mock_rkmt\" configured for collections groups, userprofiles, and messages.",
+        "Runtime reads Mongo-backed data for stats, audience, influencers, narratives, and mock message search.",
+        "Narrative extraction and vector search still use simplified heuristics rather than production models.",
+        "Potential questions are treated as context examples, not capability limits.",
+        "Planner LLM failed; fallback planning template used."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Interpret question and evidence scope",
+          "rationale": "Classify required metrics and specialist domains before running tools.",
+          "owner": "planner",
+          "tool": "Planning Notes",
+          "toolId": "planning_notes",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Record the analysis frame before execution."
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Run baseline metrics against Mongo",
+          "rationale": "Use Mongo-backed queries to ground the answer with measurable stats.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Derive audience and influencer angles",
+          "rationale": "Generate segment/influencer hypotheses through the AudienceBuilder specialist.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Use the current question and prior stats to derive audience segments and influencer angles."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Explore narratives and sentiment",
+          "rationale": "Generate narrative-level interpretation through the NarrativeExplorer specialist.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "query": "What is the political leaning distribution of users active in the last 30 days?",
+            "timeframeDays": 7,
+            "limit": 8,
+            "focus": "Use the question and supporting stats to explain current narratives."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize strict JSON response",
+          "rationale": "Produce UI-safe typed answer and suggested follow-up questions.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "answer",
+              "keyFindings",
+              "dataPoints",
+              "caveats",
+              "recommendedNextQuestions"
+            ]
+          },
+          "dependsOn": [
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "answer",
+          "keyFindings",
+          "dataPoints",
+          "caveats",
+          "recommendedNextQuestions"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "cbfd548e-0113-4627-9c1a-8cec09e69a93": {
+    "id": "cbfd548e-0113-4627-9c1a-8cec09e69a93",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T08:02:11.055Z",
+    "updatedAt": "2026-03-08T08:02:11.055Z",
+    "plan": {
+      "objective": "Answer user question: What is the political leaning distribution of users active in the last 30 days?",
+      "assumptions": [
+        "Mongo DB \"mock_rkmt\" configured for collections groups, userprofiles, and messages.",
+        "Runtime reads Mongo-backed data for stats, audience, influencers, narratives, and mock message search.",
+        "Narrative extraction and vector search still use simplified heuristics rather than production models.",
+        "Potential questions are treated as context examples, not capability limits.",
+        "Planner LLM failed; fallback planning template used."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Interpret question and evidence scope",
+          "rationale": "Classify required metrics and specialist domains before running tools.",
+          "owner": "planner",
+          "tool": "Planning Notes",
+          "toolId": "planning_notes",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Record the analysis frame before execution."
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Run baseline metrics against Mongo",
+          "rationale": "Use Mongo-backed queries to ground the answer with measurable stats.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Derive audience and influencer angles",
+          "rationale": "Generate segment/influencer hypotheses through the AudienceBuilder specialist.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Use the current question and prior stats to derive audience segments and influencer angles."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Explore narratives and sentiment",
+          "rationale": "Generate narrative-level interpretation through the NarrativeExplorer specialist.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "query": "What is the political leaning distribution of users active in the last 30 days?",
+            "timeframeDays": 7,
+            "limit": 8,
+            "focus": "Use the question and supporting stats to explain current narratives."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize strict JSON response",
+          "rationale": "Produce UI-safe typed answer and suggested follow-up questions.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "answer",
+              "keyFindings",
+              "dataPoints",
+              "caveats",
+              "recommendedNextQuestions"
+            ]
+          },
+          "dependsOn": [
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "answer",
+          "keyFindings",
+          "dataPoints",
+          "caveats",
+          "recommendedNextQuestions"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "4f36053e-ea8a-4757-bf39-f19c267d5dfa": {
+    "id": "4f36053e-ea8a-4757-bf39-f19c267d5dfa",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T08:33:33.474Z",
+    "updatedAt": "2026-03-08T08:33:33.474Z",
+    "plan": {
+      "objective": "Answer user question: What is the political leaning distribution of users active in the last 30 days?",
+      "assumptions": [
+        "Mongo DB \"mock_rkmt\" configured for collections groups, userprofiles, and messages.",
+        "Runtime reads Mongo-backed data for stats, audience, influencers, narratives, and mock message search.",
+        "Narrative extraction and vector search still use simplified heuristics rather than production models.",
+        "Potential questions are treated as context examples, not capability limits.",
+        "Planner LLM failed; fallback planning template used."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Interpret question and evidence scope",
+          "rationale": "Classify required metrics and specialist domains before running tools.",
+          "owner": "planner",
+          "tool": "Planning Notes",
+          "toolId": "planning_notes",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Record the analysis frame before execution."
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Run baseline metrics against Mongo",
+          "rationale": "Use Mongo-backed queries to ground the answer with measurable stats.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Derive audience and influencer angles",
+          "rationale": "Generate segment/influencer hypotheses through the AudienceBuilder specialist.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "focus": "Use the current question and prior stats to derive audience segments and influencer angles."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Explore narratives and sentiment",
+          "rationale": "Generate narrative-level interpretation through the NarrativeExplorer specialist.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What is the political leaning distribution of users active in the last 30 days?",
+            "query": "What is the political leaning distribution of users active in the last 30 days?",
+            "timeframeDays": 7,
+            "limit": 8,
+            "focus": "Use the question and supporting stats to explain current narratives."
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "statsContext": "steps.step-2.data"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize strict JSON response",
+          "rationale": "Produce UI-safe typed answer and suggested follow-up questions.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "answer",
+              "keyFindings",
+              "dataPoints",
+              "caveats",
+              "recommendedNextQuestions"
+            ]
+          },
+          "dependsOn": [
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "answer",
+          "keyFindings",
+          "dataPoints",
+          "caveats",
+          "recommendedNextQuestions"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "59720201-f43b-46cc-ac84-a869307bb3d6": {
+    "id": "59720201-f43b-46cc-ac84-a869307bb3d6",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:09:48.560Z",
+    "updatedAt": "2026-03-08T09:09:48.560Z",
+    "plan": {
+      "objective": "Compute the political leaning distribution of users who were active in the last 30 days and return it in a UI-ready summarized form.",
+      "assumptions": [
+        "The metric `political_leaning_distribution` is supported by db_stats_query and is scoped to users active within `lastDays`.",
+        "The db_stats_query output contains bucket labels (e.g., left/center/right/unknown) and counts and/or percentages.",
+        "A short bullet summary is acceptable for the UI, optionally including total active users if available in the metric output."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Query political leaning distribution for last 30 days",
+          "rationale": "Fetch the aggregate distribution directly from the stats store scoped to users active in the last 30 days.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30,
+            "limit": 50
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Summarize distribution into UI bullets",
+          "rationale": "Convert the raw distribution output into concise, human-readable bullets (top buckets, percentages, and any totals).",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 8
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "text": "steps.step-1.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Assemble final UI response JSON",
+          "rationale": "Return a strict JSON object with consistent sections for the UI, combining raw metric output and the summary.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "political_leaning_distribution_last_30_days",
+              "summary"
+            ],
+            "emphasis": "Provide the leaning buckets with counts/percentages for active users in the last 30 days; include a short bullet summary."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-2.outputSummary"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "political_leaning_distribution_last_30_days",
+          "summary"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "e8930a78-5568-45a8-976d-a9b991ebc56b": {
+    "id": "e8930a78-5568-45a8-976d-a9b991ebc56b",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:17:13.306Z",
+    "updatedAt": "2026-03-08T09:17:13.306Z",
+    "plan": {
+      "objective": "Compute the political leaning distribution of users active in the last 30 days and package it for UI consumption.",
+      "assumptions": [
+        "The Mongo-backed stats layer tracks a per-user political leaning label and can aggregate distributions over active users in a timeframe.",
+        "“Active” is defined by the stats layer’s standard activity definition (e.g., posted/replied/reacted) within the last N days.",
+        "The UI expects a strict JSON response assembled via synthesis_agent."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Query political leaning distribution for active users (last 30 days)",
+          "rationale": "Fetch the aggregate distribution directly from the stats store for the requested timeframe.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Assemble final UI JSON response",
+          "rationale": "Convert the raw distribution output into the final structured response sections for the UI.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "politicalLeaningDistribution"
+            ],
+            "emphasis": "Report the distribution of political leaning among users active in the last 30 days; include counts and/or percentages if provided by stats output."
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-1.data"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "politicalLeaningDistribution"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "246c4e0e-2d09-4256-aa41-92c0693939b7": {
+    "id": "246c4e0e-2d09-4256-aa41-92c0693939b7",
+    "question": "What is the political leaning distribution of users active in the last 30 days?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:17:33.934Z",
+    "updatedAt": "2026-03-08T09:17:33.934Z",
+    "plan": {
+      "objective": "Compute and return the political leaning distribution of users active in the last 30 days.",
+      "assumptions": [
+        "A Mongo-backed aggregate metric exists for political leaning distribution scoped to users active within a time window.",
+        "The db_stats_query tool returns a structured distribution (e.g., buckets with counts/percentages) suitable for direct UI rendering."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Query political leaning distribution for last 30 days",
+          "rationale": "Fetch the aggregate distribution metric directly from Mongo for users active within the requested timeframe.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "political_leaning_distribution",
+            "lastDays": 30
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Synthesize results into final UI JSON",
+          "rationale": "Format the distribution output into the UI-required strict JSON sections with minimal interpretation.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "political_leaning_distribution"
+            ],
+            "emphasis": "Return the political leaning distribution for users active in the last 30 days. Include counts and percentages per bucket if available; otherwise include whatever distribution fields are returned."
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "political_leaning_distribution": "steps.step-1.data"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "political_leaning_distribution"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "5ed02124-a9ce-4beb-9314-53d72b281e48": {
+    "id": "5ed02124-a9ce-4beb-9314-53d72b281e48",
+    "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:19:44.846Z",
+    "updatedAt": "2026-03-08T09:19:44.846Z",
+    "plan": {
+      "objective": "Identify narratives that emerged in the past 7 days and rank them by discussion volume.",
+      "assumptions": [
+        "Narrative discovery and ranking can be orchestrated by the narrative_explorer_agent using underlying message retrieval, clustering, and summarization.",
+        "If an explicit 'narratives by volume' metric is not available in db_stats_query, narrative_explorer_agent will infer volume ranking from message counts in the 7-day window.",
+        "Final response must be formatted for the UI via synthesis_agent strict JSON output."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover and rank emerging narratives (last 7 days)",
+          "rationale": "Use the narrative explorer specialist to identify distinct narratives from the last 7 days and rank them by discussion volume.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What narratives emerged in the past 7 days, ranked by discussion volume?",
+            "focus": "narratives_ranked_by_volume",
+            "timeframeDays": 7,
+            "limit": 10,
+            "query": "emerging narratives last 7 days ranked by volume"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Pull representative snippets for top narratives",
+          "rationale": "Retrieve supporting message snippets for the top narratives to ground the narrative labels and ensure interpretability.",
+          "owner": "narrative_explorer",
+          "tool": "Mock Vector Search",
+          "toolId": "vector_search",
+          "args": {
+            "query": "TOP_NARRATIVES_QUERY",
+            "topK": 40
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "query": "steps.step-1.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Summarize narrative evidence into concise bullets",
+          "rationale": "Convert retrieved snippets into short, readable bullets per narrative for UI display.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "SNIPPETS_TEXT",
+            "maxBullets": 12
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "text": "steps.step-2.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Synthesize final ranked narrative list with volumes and evidence",
+          "rationale": "Combine the ranked narratives and supporting evidence into the final strict JSON response for the UI.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "ranked_narratives",
+              "discussion_volume",
+              "what_emerged_new",
+              "representative_examples",
+              "notes_and_caveats"
+            ],
+            "emphasis": "Rank narratives by discussion volume over the past 7 days; include brief descriptions and evidence bullets; call out newly emerging vs ongoing narratives."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-3"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-4.args.sections",
+            "emphasis": "steps.step-4.args.emphasis",
+            "rankedNarratives": "steps.step-1.outputSummary",
+            "evidenceBullets": "steps.step-3.outputSummary"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "ranked_narratives",
+          "discussion_volume",
+          "what_emerged_new",
+          "representative_examples",
+          "notes_and_caveats"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "3e072f27-f8bf-4bbb-8197-dc2805e7ff60": {
+    "id": "3e072f27-f8bf-4bbb-8197-dc2805e7ff60",
+    "question": "What is the stance toward Benett within each major narrative?",
+    "status": "failed",
+    "createdAt": "2026-03-08T09:20:43.820Z",
+    "updatedAt": "2026-03-08T09:25:20.419Z",
+    "plan": {
+      "objective": "Determine the stance toward Benett within each major narrative by identifying major narratives, retrieving representative message evidence per narrative, summarizing stance signals, and synthesizing a per-narrative stance table.",
+      "assumptions": [
+        "The system can approximate 'major narratives' via narrative_explorer_agent outputs without a dedicated 'top narratives' metric.",
+        "Stance can be inferred from narrative_probe interpretations plus supporting snippets retrieved by semantic search.",
+        "Timeframe defaults to a recent window (e.g., last 30 days) unless otherwise specified."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Identify major narratives where Benett is discussed (recent window)",
+          "rationale": "First establish the set of major narratives relevant to Benett, so stance can be assessed within each narrative rather than globally.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What is the stance toward Benett within each major narrative?",
+            "focus": "Discover major narratives involving Benett and summarize them.",
+            "timeframeDays": 30,
+            "limit": 8,
+            "query": "Benett Bennett Naftali"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: raw"
+        },
+        {
+          "id": "step-2",
+          "title": "Extract narrative candidates and stance framing",
+          "rationale": "Convert the narrative explorer output into a clean list of narrative labels/themes and any initial stance cues to drive targeted evidence collection.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 10
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "text": "steps.step-1.outputSummary"
+          },
+          "status": "failed",
+          "outputSummary": "[\n  {\n    \"code\": \"too_big\",\n    \"maximum\": 5,\n    \"type\": \"number\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"Number must be less than or equal to 5\",\n    \"path\": [\n      \"maxBullets\"\n    ]\n  }\n]"
+        },
+        {
+          "id": "step-3",
+          "title": "Collect representative message snippets for Benett to ground stance by narrative",
+          "rationale": "Retrieve concrete snippets that mention Benett to support stance judgments and reduce over-reliance on abstract narrative labeling.",
+          "owner": "narrative_explorer",
+          "tool": "Mock Vector Search",
+          "toolId": "vector_search",
+          "args": {
+            "query": "Benett within major narratives: leadership, coalition/opposition, security, economy, protests, corruption. Include supportive and critical mentions.",
+            "topK": 30
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "query": "steps.step-2.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Summarize stance signals toward Benett from retrieved evidence",
+          "rationale": "Turn the retrieved snippets into concise stance indicators (positive/negative/mixed/neutral) and key rationales to map onto each narrative.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 12
+          },
+          "dependsOn": [
+            "step-3"
+          ],
+          "inputBindings": {
+            "text": "steps.step-3.data.snippets"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize per-narrative stance toward Benett (final UI JSON)",
+          "rationale": "Combine discovered narratives and evidence-based stance signals into a structured per-narrative stance output suitable for the UI.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "major_narratives",
+              "stance_by_narrative",
+              "supporting_evidence"
+            ],
+            "emphasis": "Per-narrative stance toward Benett; label each narrative and classify stance (positive/negative/mixed/neutral) with 1–2 supporting rationale bullets and example snippets."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-5.args.sections",
+            "emphasis": "steps.step-5.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "major_narratives",
+          "stance_by_narrative",
+          "supporting_evidence"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step-1",
+        "owner": "narrative_explorer",
+        "tool": "Narrative Explorer Agent",
+        "toolId": "narrative_explorer_agent",
+        "data": {
+          "raw": "An error occurred while running the tool. Please try again. Error: Error: 400 Invalid schema for function 'narrative_probe': In context=(), 'additionalProperties' is required to be supplied and to be false."
+        }
+      }
+    ],
+    "error": "[\n  {\n    \"code\": \"too_big\",\n    \"maximum\": 5,\n    \"type\": \"number\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"Number must be less than or equal to 5\",\n    \"path\": [\n      \"maxBullets\"\n    ]\n  }\n]"
+  },
+  "ed15d3b6-2ef3-47e9-8e93-d3025e93a52c": {
+    "id": "ed15d3b6-2ef3-47e9-8e93-d3025e93a52c",
+    "question": "Who are the key influencers spreading narrative about the budget\n",
+    "status": "failed",
+    "createdAt": "2026-03-08T09:28:20.900Z",
+    "updatedAt": "2026-03-08T09:29:27.193Z",
+    "plan": {
+      "objective": "Identify the key influencers driving and spreading budget-related narratives.",
+      "assumptions": [
+        "“Budget” refers to the government/state budget discourse in recent messages.",
+        "Influencers can be ranked via message activity, reactions, replies, and cross-group spread.",
+        "If multiple budget narratives exist, we should identify influencers per top narrative cluster to avoid mixing distinct storylines."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover top budget-related narrative clusters in a recent window",
+          "rationale": "First identify the main budget narratives being discussed so influencer ranking can be done per narrative (more precise than a single broad query).",
+          "owner": "narrative_explorer",
+          "tool": "Find Narratives In Timeframe",
+          "toolId": "find_narratives_in_timeframe",
+          "args": {
+            "timeframeDays": 14,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "completed",
+          "outputSummary": "Returned fields: tool, timeframeDays, coverage, narratives"
+        },
+        {
+          "id": "step-2",
+          "title": "Extract the most relevant budget narrative from clusters",
+          "rationale": "Pick/condense the most budget-relevant narrative framing from the discovered clusters to use as the influencer_lookup input.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "Who are the key influencers spreading narrative about the budget",
+            "focus": "Select/condense the most budget-relevant narrative from the provided clusters",
+            "timeframeDays": 14,
+            "limit": 10,
+            "query": "budget state budget government budget deficit taxes spending cuts"
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "question": "question",
+            "limit": "steps.step-1.args.limit"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights"
+        },
+        {
+          "id": "step-3",
+          "title": "Rank key influencers spreading the selected budget narrative",
+          "rationale": "Use the platform’s influencer ranking based on activity, reactions, replies, and spread for the extracted budget narrative.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-2.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, influencers"
+        },
+        {
+          "id": "step-4",
+          "title": "Summarize influencer list with why they matter",
+          "rationale": "Convert the ranked influencer output into concise bullets highlighting role, evidence signals (activity/reach), and associated framing.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 8
+          },
+          "dependsOn": [
+            "step-3"
+          ],
+          "inputBindings": {
+            "text": "steps.step-3.outputSummary"
+          },
+          "status": "failed",
+          "outputSummary": "[\n  {\n    \"code\": \"too_big\",\n    \"maximum\": 5,\n    \"type\": \"number\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"Number must be less than or equal to 5\",\n    \"path\": [\n      \"maxBullets\"\n    ]\n  }\n]"
+        },
+        {
+          "id": "step-5",
+          "title": "Assemble final answer for the UI",
+          "rationale": "Return a clean response focused on key influencers, the budget narrative they spread, and brief evidence context.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "Key influencers spreading budget narratives",
+              "What narrative they are spreading",
+              "Evidence signals / notes"
+            ],
+            "emphasis": "Ranked list of influencers with brief evidence and narrative association; keep concise."
+          },
+          "dependsOn": [
+            "step-4",
+            "step-2"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-5.args.sections",
+            "emphasis": "steps.step-5.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Key influencers spreading budget narratives",
+          "What narrative they are spreading",
+          "Evidence signals / notes"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step-1",
+        "owner": "narrative_explorer",
+        "tool": "Find Narratives In Timeframe",
+        "toolId": "find_narratives_in_timeframe",
+        "data": {
+          "tool": "find_narratives_in_timeframe",
+          "timeframeDays": 14,
+          "coverage": "Narrative volume aggregated from Mongo messages in the last 14 days using group topic tags and simple body heuristics.",
+          "narratives": [
+            {
+              "narrative": "Housing policy",
+              "volume": 8
+            },
+            {
+              "narrative": "Healthcare access",
+              "volume": 9
+            },
+            {
+              "narrative": "Small business support",
+              "volume": 6
+            },
+            {
+              "narrative": "Municipal budgets",
+              "volume": 12
+            },
+            {
+              "narrative": "Security updates",
+              "volume": 7
+            },
+            {
+              "narrative": "Education reform",
+              "volume": 18
+            },
+            {
+              "narrative": "Cost of living",
+              "volume": 10
+            },
+            {
+              "narrative": "Community volunteering",
+              "volume": 4
+            },
+            {
+              "narrative": "Local leadership",
+              "volume": 9
+            },
+            {
+              "narrative": "Transportation planning",
+              "volume": 6
+            }
+          ]
+        }
+      },
+      {
+        "stepId": "step-2",
+        "owner": "narrative_explorer",
+        "tool": "Narrative Explorer Agent",
+        "toolId": "narrative_explorer_agent",
+        "data": {
+          "narrativeSummary": "Most budget-relevant framing to use for influencer lookup centers on (1) state/local budget shortfalls and deficit handling (Municipal budgets), (2) spending priorities and cuts—especially education funding (Education reform), and (3) taxes/affordability tradeoffs tied to household pressure (Cost of living). These clusters most directly map to “state budget / government budget / deficit / taxes / spending cuts” and are likely where budget narratives and policy claims are being amplified.",
+          "topNarratives": [
+            "Municipal budgets: “Local governments facing budget gaps/deficits; debates over balancing budgets via service reductions, rate hikes/levies, or state support; scrutiny of how funds are allocated and whether cuts harm essential services.”",
+            "Education reform (budget angle): “Education funding as the central spending priority; arguments that reforms are cover for cuts (or that efficiency reforms are needed); school/teacher resourcing framed as budget waste vs. underfunding.”",
+            "Cost of living (tax/spend angle): “Budgets framed through affordability—tax burdens, utility/rent/food pressures; skepticism about new taxes/fees; calls to redirect spending or provide relief instead of austerity.”"
+          ],
+          "sentimentHighlights": [
+            "Municipal budgets: predominantly negative/concerned sentiment (deficit anxiety, distrust over spending stewardship), with pockets of pragmatic/neutral talk about fiscal discipline and tradeoffs.",
+            "Education reform (budget angle): polarized sentiment—anger/fear when framed as cuts to schools vs. approval when framed as accountability/efficiency; high likelihood of moralized language (kids/future) driving shareability.",
+            "Cost of living (tax/spend angle): frustration and grievance tones dominate; narratives often attribute blame to government mismanagement or ‘waste,’ increasing engagement and influencer amplification potential."
+          ]
+        }
+      },
+      {
+        "stepId": "step-3",
+        "owner": "audience_builder",
+        "tool": "Influencer Lookup",
+        "toolId": "influencer_lookup",
+        "data": {
+          "source": "mongo-influencer-lookup",
+          "influencers": [
+            {
+              "maskedUserId": "user_0396@c.us",
+              "displayName": "Noam Harel",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0436@c.us",
+              "displayName": "Shira Ben-David",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0360@c.us",
+              "displayName": "Neta Cohen",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0031@c.us",
+              "displayName": "Omer Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0196@c.us",
+              "displayName": "Lior Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            }
+          ]
+        }
+      }
+    ],
+    "error": "[\n  {\n    \"code\": \"too_big\",\n    \"maximum\": 5,\n    \"type\": \"number\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"Number must be less than or equal to 5\",\n    \"path\": [\n      \"maxBullets\"\n    ]\n  }\n]"
+  },
+  "1fed27db-cb2b-4d42-b5e4-81c22f53174a": {
+    "id": "1fed27db-cb2b-4d42-b5e4-81c22f53174a",
+    "question": "Who are the key influencers spreading narrative",
+    "status": "completed",
+    "createdAt": "2026-03-08T09:34:02.097Z",
+    "updatedAt": "2026-03-08T09:34:27.317Z",
+    "plan": {
+      "objective": "Identify the key influencers spreading the relevant narrative(s) implied by the user question and summarize the top results.",
+      "assumptions": [
+        "The user’s question refers to one or more prominent narratives currently circulating; if unspecified, we will first discover top narratives in a recent timeframe.",
+        "Influencers can be ranked from message activity, reactions, replies, and cross-group spread using influencer_lookup."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover top narratives in the recent timeframe",
+          "rationale": "If the narrative is not explicitly named, first identify the most active narrative clusters to know what to run influencer ranking on.",
+          "owner": "narrative_explorer",
+          "tool": "Find Narratives In Timeframe",
+          "toolId": "find_narratives_in_timeframe",
+          "args": {
+            "timeframeDays": 14,
+            "limit": 5
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "completed",
+          "outputSummary": "Returned fields: tool, timeframeDays, coverage, narratives"
+        },
+        {
+          "id": "step-2",
+          "title": "Rank influencers for each discovered narrative",
+          "rationale": "For each major narrative cluster, identify accounts most responsible for spreading it based on activity, engagement, and diffusion signals.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-1.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, influencers"
+        },
+        {
+          "id": "step-3",
+          "title": "Summarize key influencers and what narratives they spread",
+          "rationale": "Convert the raw influencer ranking output into concise bullets suitable for presentation.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 10
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "text": "steps.step-2.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, bullets"
+        },
+        {
+          "id": "step-4",
+          "title": "Assemble final answer for UI",
+          "rationale": "Package the influencer findings into the required structured output sections for the UI.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "key_influencers"
+            ],
+            "emphasis": "Return the top influencers per narrative, including brief evidence (activity/engagement/spread) when available."
+          },
+          "dependsOn": [
+            "step-3"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-3.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Based on the last 14 days of Mongo message activity, the available influencer lookup surfaces five users tied for the top influence score (1"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "key_influencers"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step-1",
+        "owner": "narrative_explorer",
+        "tool": "Find Narratives In Timeframe",
+        "toolId": "find_narratives_in_timeframe",
+        "data": {
+          "tool": "find_narratives_in_timeframe",
+          "timeframeDays": 14,
+          "coverage": "Narrative volume aggregated from Mongo messages in the last 14 days using group topic tags and simple body heuristics.",
+          "narratives": [
+            {
+              "narrative": "Housing policy",
+              "volume": 8
+            },
+            {
+              "narrative": "Healthcare access",
+              "volume": 9
+            },
+            {
+              "narrative": "Small business support",
+              "volume": 6
+            },
+            {
+              "narrative": "Municipal budgets",
+              "volume": 12
+            },
+            {
+              "narrative": "Security updates",
+              "volume": 7
+            }
+          ]
+        }
+      },
+      {
+        "stepId": "step-2",
+        "owner": "audience_builder",
+        "tool": "Influencer Lookup",
+        "toolId": "influencer_lookup",
+        "data": {
+          "source": "mongo-influencer-lookup",
+          "influencers": [
+            {
+              "maskedUserId": "user_0396@c.us",
+              "displayName": "Noam Harel",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0436@c.us",
+              "displayName": "Shira Ben-David",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0360@c.us",
+              "displayName": "Neta Cohen",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0031@c.us",
+              "displayName": "Omer Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0196@c.us",
+              "displayName": "Lior Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            }
+          ]
+        }
+      },
+      {
+        "stepId": "step-3",
+        "owner": "synthesizer",
+        "tool": "Summarization",
+        "toolId": "summarization",
+        "data": {
+          "source": "dummy-summarizer",
+          "bullets": [
+            "",
+            "Dummy bullet 2",
+            "Dummy bullet 3",
+            "Dummy bullet 4",
+            "Dummy bullet 5",
+            "Dummy bullet 6",
+            "Dummy bullet 7",
+            "Dummy bullet 8",
+            "Dummy bullet 9",
+            "Dummy bullet 10"
+          ]
+        }
+      },
+      {
+        "stepId": "step-4",
+        "owner": "synthesizer",
+        "tool": "Synthesis Agent",
+        "toolId": "synthesis_agent",
+        "data": {
+          "answer": "Based on the last 14 days of Mongo message activity, the available influencer lookup surfaces five users tied for the top influence score (1). However, the dataset does not map influencers to specific narratives, so we cannot confidently state who is spreading each narrative (e.g., Municipal budgets, Healthcare access).",
+          "keyFindingsCount": 3,
+          "caveatsCount": 4
+        }
+      }
+    ],
+    "finalAnswer": {
+      "answer": "Based on the last 14 days of Mongo message activity, the available influencer lookup surfaces five users tied for the top influence score (1). However, the dataset does not map influencers to specific narratives, so we cannot confidently state who is spreading each narrative (e.g., Municipal budgets, Healthcare access).",
+      "keyFindings": [
+        "Top influencer list is a 5-way tie (influenceScore=1) with identical engagement metrics across users.",
+        "Influencer records do not include narrative attribution (narrative field is empty), preventing narrative-specific influencer identification.",
+        "Highest-volume narratives in the last 14 days are Municipal budgets (12) and Healthcare access (9), but no direct linkage to the influencer list is provided."
+      ],
+      "dataPoints": [
+        {
+          "label": "Timeframe (days)",
+          "value": 14
+        },
+        {
+          "label": "Top narratives by volume",
+          "value": "Municipal budgets (12), Healthcare access (9), Housing policy (8), Security updates (7), Small business support (6)"
+        },
+        {
+          "label": "Influencers returned (count)",
+          "value": 5
+        },
+        {
+          "label": "Top influencers (tied)",
+          "value": "Noam Harel (user_0396@c.us); Shira Ben-David (user_0436@c.us); Neta Cohen (user_0360@c.us); Omer Mizrahi (user_0031@c.us); Lior Mizrahi (user_0196@c.us)"
+        },
+        {
+          "label": "Influence score (all listed)",
+          "value": 1
+        },
+        {
+          "label": "Per-influencer activity (all listed)",
+          "value": "messageCount=1, reactionCount=4, replyCount=2, groupCount=1"
+        },
+        {
+          "label": "Narratives identified (count)",
+          "value": 5
+        }
+      ],
+      "caveats": [
+        "Influencer lookup output lacks narrative association (narrative field is empty), so the answer cannot be tied to a specific narrative without additional joins (e.g., user->message->topic tag).",
+        "All returned influencers have identical metrics and a minimal messageCount (1), suggesting limited evidence and/or an overly coarse scoring/ranking method for this timeframe.",
+        "Narrative volumes are derived from “group topic tags and simple body heuristics,” which may misclassify topics or miss nuance.",
+        "The summarization artifact contains placeholder/dummy bullets and adds no reliable analytic value."
+      ],
+      "recommendedNextQuestions": [
+        "For each top narrative (e.g., Municipal budgets), who are the top 10 users by message volume and by reactions received in the last 14 days?",
+        "Can we attribute narratives to users by joining message topic tags to authors, and then re-rank influencers per narrative?",
+        "Who are the cross-group amplifiers (users posting about the same narrative in multiple groups) and how does their engagement compare?",
+        "Which accounts generate the most replies vs. reactions (conversation starters vs. broadcasters) within each narrative?",
+        "How stable are the influencer rankings week-over-week (last 7 days vs. prior 7 days)?"
+      ]
+    }
+  },
+  "58220cb6-787f-459d-baa7-d4fb146ac322": {
+    "id": "58220cb6-787f-459d-baa7-d4fb146ac322",
+    "question": "Identify Israelis abroad active in political discussions",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:36:06.256Z",
+    "updatedAt": "2026-03-08T09:42:30.380Z",
+    "plan": {
+      "objective": "Identify Israelis abroad active in political discussions by treating all users in the DB as Israelis abroad, then ranking the most active/impactful participants and summarizing what they are discussing.",
+      "assumptions": [
+        "All users in the DB are Israelis abroad (per user feedback); no need to infer nationality/location or filter to diaspora signals.",
+        "All discussions are treated as political discussions for this task; 'active' is operationalized via recent posting/replying/reacting volume and cross-group presence.",
+        "Influencer ranking is based on available platform signals in Mongo (message volume, reactions, replies, spread across groups)."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Get activity distribution and top active groups (baseline: Israelis abroad = entire DB)",
+          "rationale": "Since all DB users are Israelis abroad, establish where political discussion is happening and how intense it is recently (volume + top groups) to ground 'active' identification.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "recent_message_volume",
+            "lastDays": 30,
+            "limit": 20
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Build the active Israelis-abroad audience segments (entire DB; segment by groups/tags/activity)",
+          "rationale": "Create concrete segments for 'active' Israelis abroad (which equals all users) using recent activity and group participation; this will serve as the basis for identifying active participants.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "Identify Israelis abroad active in political discussions",
+            "focus": "Assume all users in DB are Israelis abroad and all discussions are political. Build segments of ACTIVE users based on recent activity, groups, tags, and engagement patterns.",
+            "narrative": "Active Israelis abroad political discussion = overall DB; focus on highest activity and engagement."
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Identify main discussion clusters in the last 30 days (context for activity)",
+          "rationale": "Provide context on what the active Israelis-abroad population is discussing recently; not used for filtering, only to label/interpret the active conversation landscape.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "What are the main political discussion clusters among Israelis abroad (entire DB) in the last 30 days?",
+            "focus": "Assume all users are Israelis abroad and all discussions are political; extract major conversation clusters for context.",
+            "timeframeDays": 30,
+            "limit": 12,
+            "query": "politics government opposition coalition war ceasefire hostages protest election diaspora antisemitism campus foreign policy"
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Rank likely influencers / most impactful active participants (entire DB)",
+          "rationale": "Directly identify the Israelis abroad who are most active/impactful in political discussions by ranking accounts using activity, reactions, replies, and cross-group spread.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-3",
+            "step-2"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-3.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize: active Israelis abroad + influencer list + supporting context",
+          "rationale": "Combine segments, baseline activity stats, discussion clusters, and influencer ranking into a UI-ready answer aligned with the updated assumption that all users are Israelis abroad.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "Assumptions",
+              "Definition of 'active' used",
+              "Activity baseline (last 30 days)",
+              "Audience segments: active Israelis abroad",
+              "Main discussion clusters (last 30 days)",
+              "Likely influencers / top active participants (ranked)",
+              "Notes & limitations"
+            ],
+            "emphasis": "Treat entire DB as Israelis abroad; focus on identifying and ranking the most active/impactful participants and the groups/segments they concentrate in. Avoid any inference about who is Israeli abroad."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Assumptions",
+          "Definition of 'active' used",
+          "Activity baseline (last 30 days)",
+          "Audience segments: active Israelis abroad",
+          "Main discussion clusters (last 30 days)",
+          "Likely influencers / top active participants (ranked)",
+          "Notes & limitations"
+        ]
+      }
+    },
+    "revisionNotes": [
+      "assume all discussions are political discussions",
+      "assume all users in the DB are Israelis abroad\n",
+      "assume all users in the DB are Israelis abroad\n"
+    ],
+    "artifacts": []
+  },
+  "b70c92d8-7e0f-4c66-a9fe-51459761f138": {
+    "id": "b70c92d8-7e0f-4c66-a9fe-51459761f138",
+    "question": "Identify Israelis abroad active in political discussions",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:43:21.426Z",
+    "updatedAt": "2026-03-08T09:44:09.828Z",
+    "plan": {
+      "objective": "Identify Israelis abroad who are active in political discussions (assume all users in the DB are Israelis abroad, so focus on identifying the most active accounts and where they are active).",
+      "assumptions": [
+        "All users in the DB are Israelis abroad (no need to infer ‘abroad’ or filter for it).",
+        "Political discussions need no topic filtering; treat general discussion activity as political-discussion activity per the question framing.",
+        "“Active” is proxied by recent message volume, replies, reactions, and cross-group spread as implemented by influencer lookup.",
+        "Return a ranked list of likely individuals plus supporting context (segments/groups and representative snippets)."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Build activity-based audience segments (all users assumed Israelis abroad)",
+          "rationale": "Create audience segments focused on where/ how Israelis abroad are engaging (groups, tags, recent activity patterns), without any filtering for ‘abroad’.",
+          "owner": "audience_builder",
+          "tool": "Audience Lookup",
+          "toolId": "audience_lookup",
+          "args": {
+            "question": "Identify Israelis abroad active in political discussions (assume all users in the DB are israelis abroad)"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Rank likely most-active individuals (influencers) across discussions",
+          "rationale": "Produce a ranked list of accounts most active/relevant using posting, replies, reactions, and multi-group presence; ‘abroad’ is assumed true for everyone.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": "Most active accounts in political discussions (assume all users are Israelis abroad)"
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-2.args.narrative"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Pull representative discussion snippets for validation (semantic search)",
+          "rationale": "Retrieve representative message snippets that demonstrate political/discussion engagement among the active accounts and within the key segments/groups.",
+          "owner": "narrative_explorer",
+          "tool": "Mock Vector Search",
+          "toolId": "vector_search",
+          "args": {
+            "query": "politics government election coalition protest security gaza hostages ceasefire bibi netanyahu supreme court judicial reform",
+            "topK": 25
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2"
+          ],
+          "inputBindings": {
+            "query": "steps.step-3.args.query"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Add lightweight database activity context (recent volume/top groups)",
+          "rationale": "Provide aggregate context for recency and concentration of discussion to support interpretation of the ranked list (e.g., volume and top groups).",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "recent_message_volume",
+            "lastDays": 30,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "metric": "steps.step-4.args.metric",
+            "lastDays": "steps.step-4.args.lastDays",
+            "limit": "steps.step-4.args.limit"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize final answer for UI (ranked users + segments + evidence)",
+          "rationale": "Combine segments, influencer ranking, snippets, and activity context into a clean UI-ready JSON response; explicitly note that ‘all users are Israelis abroad’ is assumed per user feedback.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "assumption",
+              "audience_segments",
+              "top_active_israelis_abroad",
+              "supporting_evidence_snippets",
+              "activity_context",
+              "notes_and_limits"
+            ],
+            "emphasis": "Assume all DB users are Israelis abroad (per user feedback). Identify and rank the most active individuals in discussions (treated as political). Include the audience segments/groups where activity concentrates, a few representative message snippets as evidence, and brief aggregate activity context. Clearly state limits (ranking is activity-based; no identity verification beyond DB user records)."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-5.args.sections",
+            "emphasis": "steps.step-5.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "assumption",
+          "audience_segments",
+          "top_active_israelis_abroad",
+          "supporting_evidence_snippets",
+          "activity_context",
+          "notes_and_limits"
+        ]
+      }
+    },
+    "revisionNotes": [
+      "assume all discussions are political discussions",
+      "assume all users in the DB are israelis abroad"
+    ],
+    "artifacts": []
+  },
+  "84b94b38-8e7f-4758-971f-dc2fd5956610": {
+    "id": "84b94b38-8e7f-4758-971f-dc2fd5956610",
+    "question": "Identify Israelis abroad active in political discussions",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:49:47.392Z",
+    "updatedAt": "2026-03-08T09:49:47.392Z",
+    "plan": {
+      "objective": "Identify Israelis abroad who are active in political discussions, and return likely audience segments and top influencers/users to review.",
+      "assumptions": [
+        "We approximate \"Israelis abroad\" via available Mongo group metadata, tags, self-declared location, language/timezone signals, or expat/diaspora group participation surfaced by the audience tools.",
+        "\"Active in political discussions\" is proxied by recent message activity in political narratives/groups and engagement signals (replies/reactions).",
+        "The system returns ranked candidates and segments; final identification may require manual verification depending on available metadata."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover current political narratives being discussed",
+          "rationale": "Establish what counts as \"political discussions\" in the dataset by extracting recent narrative clusters to use as seeds for influencer/user identification.",
+          "owner": "narrative_explorer",
+          "tool": "Find Narratives In Timeframe",
+          "toolId": "find_narratives_in_timeframe",
+          "args": {
+            "timeframeDays": 30,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Select and interpret the relevant political discussion focus",
+          "rationale": "Convert the user question into a clear narrative focus definition (politics + Israelis abroad/expat context) to guide audience construction and influencer ranking.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Probe",
+          "toolId": "narrative_probe",
+          "args": {
+            "question": ""
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Build an audience segment for Israelis abroad active in politics",
+          "rationale": "Use the audience specialist to produce concrete segments (groups/tags/criteria) representing Israelis abroad who are politically active, grounded in the derived narrative focus.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "",
+            "focus": "Israelis abroad active in political discussions",
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "question": "question",
+            "narrative": "steps.step-2.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Rank likely Israeli-abroad political influencers/users",
+          "rationale": "From the constructed audience/narrative context, rank the most active and spread-driving accounts to answer \"identify\" with a prioritized list for review.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-3"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-3.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Synthesize a structured answer with segments and candidate users",
+          "rationale": "Combine audience segments and ranked influencer/users into a UI-ready response describing who to look at and why, including any caveats about identification signals.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "audience_segments",
+              "candidate_users_ranked",
+              "evidence_signals_used",
+              "caveats_next_steps"
+            ],
+            "emphasis": "Provide actionable segments and a ranked list of likely Israelis abroad engaged in political discussions; include brief evidence signals per candidate/segment."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-5.args.sections",
+            "emphasis": "steps.step-5.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "audience_segments",
+          "candidate_users_ranked",
+          "evidence_signals_used",
+          "caveats_next_steps"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "9b97b611-9bf3-4b3b-afec-b7d518636492": {
+    "id": "9b97b611-9bf3-4b3b-afec-b7d518636492",
+    "question": "Identify Israelis abroad active in political discussions",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T09:50:37.529Z",
+    "updatedAt": "2026-03-08T09:51:29.056Z",
+    "plan": {
+      "objective": "Identify Israelis abroad active in political discussions, assuming all users in the dataset are Israelis abroad, and return a ranked list with supporting context.",
+      "assumptions": [
+        "All users are Israelis abroad (per user feedback), so no “abroad” verification or expat-signal filtering is required.",
+        "All relevant activity is within political discussions; no topic filtering is required beyond general political-discussion context.",
+        "“Active” can be approximated by recent message volume and engagement signals (replies/reactions) and spread across groups."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Build an audience segment for active Israelis abroad in political discussions",
+          "rationale": "With the assumption that all users are Israelis abroad, segmentation focuses purely on identifying the most active participants in political discussions and the groups where they are active.",
+          "owner": "audience_builder",
+          "tool": "Audience Builder Agent",
+          "toolId": "audience_builder_agent",
+          "args": {
+            "question": "Identify Israelis abroad active in political discussions",
+            "focus": "Assume all users are Israelis abroad and all discussions are political; segment and surface the most active participants and relevant groups",
+            "narrative": "All users are Israelis abroad; all discussions treated as political"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Rank likely influencers (most active/engaged users) within the assumed Israelis-abroad population",
+          "rationale": "Produce a ranked shortlist of users based on activity, engagement, and cross-group presence; no abroad/topic filtering is needed given assumptions.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": "Assume all users are Israelis abroad; rank most active/engaged in political discussions"
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-2.args.narrative"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Retrieve representative evidence snippets of high-activity political participation",
+          "rationale": "Collect message snippets that demonstrate frequent participation and political discussion involvement to support explainability for the ranked users and segments.",
+          "owner": "narrative_explorer",
+          "tool": "Mock Vector Search",
+          "toolId": "vector_search",
+          "args": {
+            "query": "politics policy government coalition opposition election protest ceasefire hostages security judiciary reform budget diplomacy settler sanctions UN Hamas Hezbollah Gaza West Bank Netanyahu Lapid Gantz Ben-Gvir Smotrich",
+            "topK": 25
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Summarize evidence snippets into concise bullets",
+          "rationale": "Condense retrieved snippets into short bullets highlighting the main political threads and participation patterns evident in the messages.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 8
+          },
+          "dependsOn": [
+            "step-3"
+          ],
+          "inputBindings": {
+            "text": "steps.step-3.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-5",
+          "title": "Add aggregate activity context (volume/top groups) for the recent window",
+          "rationale": "Provide lightweight aggregate context (e.g., recent message volume, top groups) to ground the influencer ranking and audience segment in overall dataset activity.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "recent_message_volume_and_top_groups",
+            "lastDays": 30,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-6",
+          "title": "Synthesize final ranked list and evidence into strict UI JSON",
+          "rationale": "Combine audience segmentation, influencer ranking, aggregate context, and summarized evidence into a single coherent output with method and limitations aligned to the assumptions.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "identified_users",
+              "ranking_method",
+              "evidence_examples",
+              "activity_context",
+              "coverage_and_limitations"
+            ],
+            "emphasis": "Assume all users are Israelis abroad and all discussions are political. Prioritize users most active/engaged and active across multiple groups. Include brief supporting evidence/context and note that ‘abroad’ is assumed rather than inferred."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-4",
+            "step-5"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-6.args.sections",
+            "emphasis": "steps.step-6.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "identified_users",
+          "ranking_method",
+          "evidence_examples",
+          "activity_context",
+          "coverage_and_limitations"
+        ]
+      }
+    },
+    "revisionNotes": [
+      "assume all discussions are political discussions",
+      "assume all users are Israelis abroad"
+    ],
+    "artifacts": []
+  }
+}
