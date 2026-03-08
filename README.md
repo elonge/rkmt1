@@ -52,7 +52,8 @@ The runtime does not hardcode support only for those questions.
    - optional: set `OPENAI_MODEL` (default `gpt-4.1`)
    - set `MONGO_URI`
    - set `MONGO_DB_NAME`
-   - optional: set `PLAN_STORE_DIR` to override where plan runtime files are written
+   - optional: set `MONGO_PLAN_JOBS_COLLECTION` (default `plan_jobs`)
+   - optional: set `PLAN_STORE_DIR` only if you want file-backed fallback storage when Mongo is not configured
    - set `NEXT_PUBLIC_FIREBASE_API_KEY`
    - set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
    - set `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
@@ -65,4 +66,4 @@ The runtime does not hardcode support only for those questions.
 4. Enable Google sign-in in your Firebase project.
 5. The UI only allows Google accounts whose email appears in `NEXT_PUBLIC_AUTH_ALLOWED_EMAILS`.
 
-On Vercel/serverless, the runtime plan store automatically uses a writable temp directory instead of the app filesystem. If you need a specific location outside serverless, set `PLAN_STORE_DIR`.
+Plan jobs are persisted in MongoDB when `MONGO_URI` is configured, using the `plan_jobs` collection by default. The file-backed store remains only as a local fallback, and `PLAN_STORE_DIR` applies to that fallback path.

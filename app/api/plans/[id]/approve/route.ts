@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { runPlanInBackground } from "@/lib/runtime/runner";
 import { getPlanJob, setPlanStatus } from "@/lib/store";
 
@@ -8,7 +8,7 @@ type Context = {
 
 export async function POST(_: Request, context: Context) {
   const { id } = await context.params;
-  const job = getPlanJob(id);
+  const job = await getPlanJob(id);
 
   if (!job) {
     return NextResponse.json(
@@ -40,10 +40,10 @@ export async function POST(_: Request, context: Context) {
     );
   }
 
-  setPlanStatus(id, "running");
-  void runPlanInBackground(id);
+  await setPlanStatus(id, "running");
+  after(() => runPlanInBackground(id));
 
-  const refreshed = getPlanJob(id);
+  const refreshed = await getPlanJob(id);
   return NextResponse.json(
     {
       ok: true,

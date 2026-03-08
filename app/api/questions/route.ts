@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const payload = createQuestionRequestSchema.parse(await request.json());
     const plan = await draftPlan(payload.question);
-    const job = createPlanJob(payload.question, plan);
+    const job = await createPlanJob(payload.question, plan);
 
     return NextResponse.json({
       ok: true,

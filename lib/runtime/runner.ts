@@ -17,29 +17,29 @@ export async function runPlanInBackground(jobId: string): Promise<void> {
   activeRuns.add(jobId);
 
   try {
-    const job = getPlanJob(jobId);
+    const job = await getPlanJob(jobId);
     if (!job) {
       return;
     }
 
     const result = await executePlan(job.question, job.plan, {
-      onStepStart(step) {
-        updateStepStatus(jobId, step.id, "running");
+      async onStepStart(step) {
+        await updateStepStatus(jobId, step.id, "running");
       },
-      onStepComplete(step, artifact, summary) {
-        appendArtifact(jobId, artifact);
-        updateStepStatus(jobId, step.id, "completed", summary);
+      async onStepComplete(step, artifact, summary) {
+        await appendArtifact(jobId, artifact);
+        await updateStepStatus(jobId, step.id, "completed", summary);
       },
-      onStepFailed(step, error) {
-        updateStepStatus(jobId, step.id, "failed", error);
+      async onStepFailed(step, error) {
+        await updateStepStatus(jobId, step.id, "failed", error);
       },
     });
 
-    setFinalAnswer(jobId, result.finalAnswer);
-    setPlanStatus(jobId, "completed");
+    await setFinalAnswer(jobId, result.finalAnswer);
+    await setPlanStatus(jobId, "completed");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown execution failure";
-    setPlanStatus(jobId, "failed", message);
+    await setPlanStatus(jobId, "failed", message);
   } finally {
     activeRuns.delete(jobId);
   }

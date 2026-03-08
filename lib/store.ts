@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Collection } from "mongodb";
 import { getToolDefinition } from "./agents/tools";
+import { getMongoDb } from "./data/mongo";
 import {
   clonePlanJob,
   ExecutionArtifact,
@@ -29,6 +32,41 @@ const STORE_DIR = resolveStoreDir();
 const STORE_FILE = join(STORE_DIR, "plan-jobs.json");
 
 type PlanJobsById = Record<string, PlanJob>;
+type StoredPlanJob = PlanJob & { _id: string };
+
+function shouldUseMongoPlanStore(): boolean {
+  return Boolean(process.env.MONGO_URI?.trim());
+}
+
+function readPlanJobsCollectionName(): string {
+  return (
+    process.env.MONGO_PLAN_JOBS_COLLECTION?.trim() ||
+    process.env.PLAN_JOBS_COLLECTION?.trim() ||
+    "plan_jobs"
+  );
+}
+
+async function getPlanJobsCollection(): Promise<Collection<StoredPlanJob>> {
+  const db = await getMongoDb();
+  return db.collection<StoredPlanJob>(readPlanJobsCollectionName());
+}
+
+function toStoredPlanJob(job: PlanJob): StoredPlanJob {
+  const normalized = normalizeJob(job);
+  return {
+    _id: normalized.id,
+    ...normalized,
+  };
+}
+
+function fromStoredPlanJob(job: StoredPlanJob | null): PlanJob | null {
+  if (!job) {
+    return null;
+  }
+
+  const { _id: _ignored, ...rest } = job;
+  return normalizeJob(rest as PlanJob);
+}
 
 function inferToolIdFromOwner(owner: string): string {
   switch (owner) {
@@ -121,21 +159,21 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function ensureStoreExists(): void {
+async function ensureStoreExists(): Promise<void> {
   if (!existsSync(STORE_DIR)) {
     mkdirSync(STORE_DIR, { recursive: true });
   }
 
   if (!existsSync(STORE_FILE)) {
-    writeFileSync(STORE_FILE, "{}\n", "utf8");
+    await writeFile(STORE_FILE, "{}\n", "utf8");
   }
 }
 
-function readPlanJobs(): PlanJobsById {
-  ensureStoreExists();
+async function readPlanJobsFromFile(): Promise<PlanJobsById> {
+  await ensureStoreExists();
 
   try {
-    const raw = readFileSync(STORE_FILE, "utf8");
+    const raw = await readFile(STORE_FILE, "utf8");
     const parsed = JSON.parse(raw) as unknown;
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -153,19 +191,19 @@ function readPlanJobs(): PlanJobsById {
   }
 }
 
-function writePlanJobs(jobs: PlanJobsById): void {
-  ensureStoreExists();
+async function writePlanJobsToFile(jobs: PlanJobsById): Promise<void> {
+  await ensureStoreExists();
 
   const tempFile = `${STORE_FILE}.${process.pid}.tmp`;
   const serialized = `${JSON.stringify(jobs, null, 2)}\n`;
 
-  writeFileSync(tempFile, serialized, "utf8");
-  renameSync(tempFile, STORE_FILE);
+  await writeFile(tempFile, serialized, "utf8");
+  await rename(tempFile, STORE_FILE);
 }
 
-export function createPlanJob(question: string, plan: PlanDraft): PlanJob {
+export async function createPlanJob(question: string, plan: PlanDraft): Promise<PlanJob> {
   const now = nowIso();
-  const job: PlanJob = {
+  const normalizedJob = normalizeJob({
     id: randomUUID(),
     question,
     status: "awaiting_approval",
@@ -174,27 +212,38 @@ export function createPlanJob(question: string, plan: PlanDraft): PlanJob {
     plan,
     revisionNotes: [],
     artifacts: [],
-  };
+  });
 
-  const jobs = readPlanJobs();
-  jobs[job.id] = normalizeJob(job);
-  writePlanJobs(jobs);
+  if (shouldUseMongoPlanStore()) {
+    const collection = await getPlanJobsCollection();
+    await collection.insertOne(toStoredPlanJob(normalizedJob));
+    return clonePlanJob(normalizedJob);
+  }
 
-  return clonePlanJob(normalizeJob(job));
+  const jobs = await readPlanJobsFromFile();
+  jobs[normalizedJob.id] = normalizedJob;
+  await writePlanJobsToFile(jobs);
+
+  return clonePlanJob(normalizedJob);
 }
 
-export function getPlanJob(id: string): PlanJob | null {
-  const jobs = readPlanJobs();
+export async function getPlanJob(id: string): Promise<PlanJob | null> {
+  if (shouldUseMongoPlanStore()) {
+    const collection = await getPlanJobsCollection();
+    const job = fromStoredPlanJob(await collection.findOne({ _id: id }));
+    return job ? clonePlanJob(job) : null;
+  }
+
+  const jobs = await readPlanJobsFromFile();
   const job = jobs[id];
   return job ? clonePlanJob(normalizeJob(job)) : null;
 }
 
-export function updatePlanJob(
+export async function updatePlanJob(
   id: string,
   update: (current: PlanJob) => PlanJob,
-): PlanJob | null {
-  const jobs = readPlanJobs();
-  const current = jobs[id];
+): Promise<PlanJob | null> {
+  const current = await getPlanJob(id);
 
   if (!current) {
     return null;
@@ -203,17 +252,24 @@ export function updatePlanJob(
   const next = normalizeJob(update(clonePlanJob(current)));
   next.updatedAt = nowIso();
 
+  if (shouldUseMongoPlanStore()) {
+    const collection = await getPlanJobsCollection();
+    await collection.replaceOne({ _id: id }, toStoredPlanJob(next));
+    return clonePlanJob(next);
+  }
+
+  const jobs = await readPlanJobsFromFile();
   jobs[id] = next;
-  writePlanJobs(jobs);
+  await writePlanJobsToFile(jobs);
 
   return clonePlanJob(next);
 }
 
-export function setPlanStatus(
+export async function setPlanStatus(
   id: string,
   status: PlanJobStatus,
   error?: string,
-): PlanJob | null {
+): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.status = status;
     current.error = error;
@@ -221,14 +277,14 @@ export function setPlanStatus(
   });
 }
 
-export function appendRevisionNote(id: string, note: string): PlanJob | null {
+export async function appendRevisionNote(id: string, note: string): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.revisionNotes.push(note);
     return current;
   });
 }
 
-export function replacePlan(id: string, plan: PlanDraft): PlanJob | null {
+export async function replacePlan(id: string, plan: PlanDraft): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.plan = plan;
     current.plan.steps = current.plan.steps.map((step) => ({
@@ -244,12 +300,12 @@ export function replacePlan(id: string, plan: PlanDraft): PlanJob | null {
   });
 }
 
-export function updateStepStatus(
+export async function updateStepStatus(
   id: string,
   stepId: string,
   status: "pending" | "running" | "completed" | "failed",
   outputSummary?: string,
-): PlanJob | null {
+): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.plan.steps = current.plan.steps.map((step) => {
       if (step.id !== stepId) {
@@ -267,14 +323,20 @@ export function updateStepStatus(
   });
 }
 
-export function appendArtifact(id: string, artifact: ExecutionArtifact): PlanJob | null {
+export async function appendArtifact(
+  id: string,
+  artifact: ExecutionArtifact,
+): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.artifacts.push(artifact);
     return current;
   });
 }
 
-export function setFinalAnswer(id: string, finalAnswer: FinalAnswer): PlanJob | null {
+export async function setFinalAnswer(
+  id: string,
+  finalAnswer: FinalAnswer,
+): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.finalAnswer = finalAnswer;
     return current;

@@ -14,7 +14,7 @@ type Context = {
 
 export async function GET(_: Request, context: Context) {
   const { id } = await context.params;
-  const job = getPlanJob(id);
+  const job = await getPlanJob(id);
 
   if (!job) {
     return NextResponse.json(
@@ -34,7 +34,7 @@ export async function GET(_: Request, context: Context) {
 
 export async function POST(request: Request, context: Context) {
   const { id } = await context.params;
-  const job = getPlanJob(id);
+  const job = await getPlanJob(id);
 
   if (!job) {
     return NextResponse.json(
@@ -59,8 +59,18 @@ export async function POST(request: Request, context: Context) {
   try {
     const payload = revisePlanRequestSchema.parse(await request.json());
     const revised = await revisePlan(job.question, job.plan, payload.feedback);
-    appendRevisionNote(id, payload.feedback);
-    const updated = replacePlan(id, revised);
+    await appendRevisionNote(id, payload.feedback);
+    const updated = await replacePlan(id, revised);
+
+    if (!updated) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Plan not found",
+        },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
