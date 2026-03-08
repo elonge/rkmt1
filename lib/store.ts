@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getToolDefinition } from "./agents/tools";
 import {
@@ -12,7 +13,19 @@ import {
   PlanJobStatus,
 } from "./types";
 
-const STORE_DIR = join(process.cwd(), ".runtime");
+function resolveStoreDir(): string {
+  if (process.env.PLAN_STORE_DIR) {
+    return process.env.PLAN_STORE_DIR;
+  }
+
+  if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.AWS_EXECUTION_ENV) {
+    return join(tmpdir(), "rkmt-runtime");
+  }
+
+  return join(process.cwd(), ".runtime");
+}
+
+const STORE_DIR = resolveStoreDir();
 const STORE_FILE = join(STORE_DIR, "plan-jobs.json");
 
 type PlanJobsById = Record<string, PlanJob>;
