@@ -63,7 +63,7 @@ const narrativesArgsSchema = z
 const vectorSearchArgsSchema = z
   .object({
     query: z.string(),
-    topK: z.number().int().min(1).max(10),
+    topK: z.number().int().min(1),
   })
   .passthrough();
 

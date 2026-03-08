@@ -616,6 +616,7 @@ export async function searchMessagesByMockVector(
   topK: number,
 ): Promise<Record<string, unknown>> {
   const { messages } = await getCollections();
+  const boundedTopK = Math.min(Math.max(Math.trunc(topK), 1), 25);
   const queryTokens = tokenize(query);
   const normalizedQuery = lowerCase(query);
   const candidates = await messages
@@ -668,7 +669,7 @@ export async function searchMessagesByMockVector(
       }
       return right.timestamp - left.timestamp;
     })
-    .slice(0, topK)
+    .slice(0, boundedTopK)
     .map(({ overlap: _overlap, ...snippet }) => snippet);
 
   return {

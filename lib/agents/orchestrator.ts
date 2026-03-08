@@ -839,15 +839,25 @@ export async function revisePlan(
   question: string,
   currentPlan: PlanDraft,
   feedback: string,
+  revisionHistory: string[] = [feedback],
 ): Promise<PlanDraft> {
   if (!OPENAI_ENABLED) {
     throw plannerUnavailableError();
   }
 
+  const normalizedRevisionHistory = revisionHistory
+    .map((note) => note.trim())
+    .filter((note) => note.length > 0);
+
   const prompt = [
     `Question:\n${question}`,
     "",
-    `User feedback:\n${feedback}`,
+    "Revision history for this plan:",
+    normalizedRevisionHistory.length > 0
+      ? normalizedRevisionHistory.map((note, index) => `${index + 1}. ${note}`).join("\n")
+      : "(none)",
+    "",
+    `Latest revision request:\n${feedback}`,
     "",
     "Executable tool registry:",
     describeExecutableTools(),
@@ -858,6 +868,7 @@ export async function revisePlan(
     '- Binding values may be `question`, `currentStep.title`, `currentStep.rationale`, `steps.<stepId>.data.<field>`, `steps.<stepId>.args.<field>`, or `steps.<stepId>.outputSummary`.',
     '- Set `argsJson` to a JSON string that decodes to an object. Example: `{"metric":"political_leaning_distribution","lastDays":30}`.',
     '- Set `inputBindingsJson` to a JSON string that decodes to an object. Example: `{"metric":"steps.step-2.data.metric"}`.',
+    "- Keep already-accepted revisions unless the latest request explicitly changes them.",
     "",
     `Current plan JSON:\n${JSON.stringify(serializePlanForPlanner(currentPlan), null, 2)}`,
     "",

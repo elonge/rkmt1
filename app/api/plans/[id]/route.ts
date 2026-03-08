@@ -58,7 +58,8 @@ export async function POST(request: Request, context: Context) {
 
   try {
     const payload = revisePlanRequestSchema.parse(await request.json());
-    const revised = await revisePlan(job.question, job.plan, payload.feedback);
+    const revisionHistory = [...job.revisionNotes, payload.feedback];
+    const revised = await revisePlan(job.question, job.plan, payload.feedback, revisionHistory);
     await appendRevisionNote(id, payload.feedback);
     const updated = await replacePlan(id, revised);
 
