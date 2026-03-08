@@ -52,7 +52,14 @@ The runtime does not hardcode support only for those questions.
    - optional: set `OPENAI_MODEL` (default `gpt-4.1`)
    - set `MONGO_URI`
    - set `MONGO_DB_NAME`
+   - set `NEXT_PUBLIC_FIREBASE_API_KEY`
+   - set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+   - set `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+   - set `NEXT_PUBLIC_FIREBASE_APP_ID`
+   - optional: set `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+   - optional: set `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   - set `NEXT_PUBLIC_AUTH_ALLOWED_EMAILS` to a comma-separated list of allowed emails
 3. Start dev server:
    - `npm run dev`
-
-If `OPENAI_API_KEY` is missing, the app still works in deterministic fallback mode.
+4. Enable Google sign-in in your Firebase project.
+5. The UI only allows Google accounts whose email appears in `NEXT_PUBLIC_AUTH_ALLOWED_EMAILS`.
