@@ -1,5 +1,5 @@
 import { Collection, ObjectId } from "mongodb";
-import { StatsQueryInput, statsQueryInputSchema } from "../types";
+import { normalizeStatsMetric, StatsQueryInput, statsQueryInputSchema } from "../types";
 import { dummyDatasetSummary, getMongoCollectionNames, getMongoDb } from "./mongo";
 
 type TagField = {
@@ -679,7 +679,10 @@ export async function searchMessagesByMockVector(
 }
 
 export async function runStatsQuery(rawInput: StatsQueryInput): Promise<Record<string, unknown>> {
-  const input = statsQueryInputSchema.parse(rawInput);
+  const input = statsQueryInputSchema.parse({
+    ...rawInput,
+    metric: normalizeStatsMetric(rawInput.metric),
+  });
 
   switch (input.metric) {
     case "political_leaning_distribution":

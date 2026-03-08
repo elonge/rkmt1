@@ -113,6 +113,30 @@ export const statsMetricSchema = z.enum([
   "top_groups_by_member_count",
 ]);
 
+export type StatsMetric = z.infer<typeof statsMetricSchema>;
+
+const statsMetricAliasMap: Record<string, StatsMetric> = {
+  top_groups: "top_groups_by_member_count",
+  top_groups_by_member: "top_groups_by_member_count",
+  top_groups_by_members: "top_groups_by_member_count",
+  top_groups_by_size: "top_groups_by_member_count",
+  group_membership_ranking: "top_groups_by_member_count",
+  recent_message_volume: "active_messages_last_days",
+  message_volume: "active_messages_last_days",
+  recent_messages: "active_messages_last_days",
+  leaning_distribution: "political_leaning_distribution",
+  political_leanings_distribution: "political_leaning_distribution",
+};
+
+export function normalizeStatsMetric(metric: unknown): unknown {
+  if (typeof metric !== "string") {
+    return metric;
+  }
+
+  const normalized = metric.trim().toLowerCase();
+  return statsMetricAliasMap[normalized] ?? metric;
+}
+
 export const statsQueryInputSchema = z.object({
   metric: statsMetricSchema,
   lastDays: z.number().int().min(1).max(365).optional(),

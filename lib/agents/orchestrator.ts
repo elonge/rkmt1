@@ -16,6 +16,7 @@ import {
 import {
   ExecutionArtifact,
   FinalAnswer,
+  normalizeStatsMetric,
   PlanDraft,
   PlanStep,
   StatsQueryInput,
@@ -373,6 +374,20 @@ function parsePlannerInputBindings(
   }
 }
 
+function normalizeToolArgs(
+  toolId: PlanStep["toolId"],
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  if (toolId !== "db_stats_query") {
+    return args;
+  }
+
+  return {
+    ...args,
+    metric: normalizeStatsMetric(args.metric),
+  };
+}
+
 function serializePlanForPlanner(plan: PlanDraft) {
   return {
     objective: plan.objective,
@@ -666,7 +681,7 @@ async function executeToolById(
   }
 
   const resolvedArgs = toolDefinition.argsSchema.parse(
-    resolveStepArgs(question, step, plan, artifacts),
+    normalizeToolArgs(step.toolId, resolveStepArgs(question, step, plan, artifacts)),
   ) as Record<string, unknown>;
 
   switch (step.toolId) {

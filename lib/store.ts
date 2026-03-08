@@ -6,6 +6,7 @@ import {
   clonePlanJob,
   ExecutionArtifact,
   FinalAnswer,
+  normalizeStatsMetric,
   PlanDraft,
   PlanJob,
   PlanJobStatus,
@@ -40,6 +41,17 @@ function normalizeStep(step: Record<string, unknown>): Record<string, unknown> {
       ? step.toolId
       : inferToolIdFromOwner(owner);
   const toolDefinition = getToolDefinition(toolId);
+  const rawArgs =
+    step.args && typeof step.args === "object" && !Array.isArray(step.args)
+      ? (step.args as Record<string, unknown>)
+      : {};
+  const normalizedArgs =
+    toolId === "db_stats_query"
+      ? {
+          ...rawArgs,
+          metric: normalizeStatsMetric(rawArgs.metric),
+        }
+      : rawArgs;
 
   return {
     ...step,
@@ -49,10 +61,7 @@ function normalizeStep(step: Record<string, unknown>): Record<string, unknown> {
       typeof step.tool === "string" && step.tool.length > 0
         ? step.tool
         : toolDefinition?.label ?? toolId,
-    args:
-      step.args && typeof step.args === "object" && !Array.isArray(step.args)
-        ? step.args
-        : {},
+    args: normalizedArgs,
     dependsOn: Array.isArray(step.dependsOn)
       ? step.dependsOn.filter((value): value is string => typeof value === "string")
       : [],
