@@ -185,10 +185,12 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px;
+  min-width: 0;
 }
 
 .step-body {
   width: 100%;
+  min-width: 0;
   text-align: left;
   color: inherit;
 }
@@ -197,6 +199,7 @@ button:disabled {
   margin-top: 8px;
   border-top: 1px dashed var(--line);
   padding-top: 8px;
+  min-width: 0;
 }
 
 .step-detail summary {
@@ -224,9 +227,14 @@ pre {
   padding: 10px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  overflow: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
   background: #faf8f3;
   font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (max-width: 640px) {
