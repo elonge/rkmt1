@@ -23,31 +23,30 @@ export async function POST(_: Request, context: Context) {
   if (job.status === "running") {
     return NextResponse.json(
       {
-        ok: true,
-        job,
+        ok: false,
+        error: "Plan is already running",
       },
-      { status: 202 },
+      { status: 409 },
     );
   }
 
-  if (job.status === "completed") {
+  const resetJob = await resetPlanExecution(id, "running");
+  if (!resetJob) {
     return NextResponse.json(
       {
-        ok: true,
-        job,
+        ok: false,
+        error: "Plan not found",
       },
-      { status: 200 },
+      { status: 404 },
     );
   }
 
-  await resetPlanExecution(id, "running");
   after(() => runPlanInBackground(id));
 
-  const refreshed = await getPlanJob(id);
   return NextResponse.json(
     {
       ok: true,
-      job: refreshed,
+      job: resetJob,
     },
     { status: 202 },
   );

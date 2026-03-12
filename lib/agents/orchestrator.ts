@@ -9,42 +9,26 @@ import {
 } from "../data/dummy-db";
 import {
   describeExecutableTools,
-  executableToolIdSchema,
+  ExecutableToolId,
+  executableToolIdValues,
   getExecutableToolDefinition,
   getToolDefinition,
+  ToolDefinition,
 } from "./tools";
 import {
   ExecutionArtifact,
   FinalAnswer,
-  normalizeStatsMetric,
+  normalizeDbStatsQueryInput,
+  parseDbStatsQueryInput,
+  parsePartialDbStatsQueryInput,
   PlanDraft,
   PlanStep,
   StatsQueryInput,
 } from "../types";
-import { getPotentialQuestions, plannerReferenceContext } from "./context";
+import { plannerReferenceContext } from "./context";
 
 const MODEL_NAME = process.env.OPENAI_MODEL ?? "gpt-4.1";
 const OPENAI_ENABLED = Boolean(process.env.OPENAI_API_KEY);
-
-const llmPlanStepSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  rationale: z.string(),
-  toolId: executableToolIdSchema,
-  argsJson: z.string(),
-  dependsOn: z.array(z.string()),
-  inputBindingsJson: z.string(),
-});
-
-const llmPlanDraftSchema = z.object({
-  objective: z.string(),
-  assumptions: z.array(z.string()),
-  steps: z.array(llmPlanStepSchema).min(1),
-  expectedOutput: z.object({
-    format: z.literal("json"),
-    sections: z.array(z.string()).min(1),
-  }),
-});
 
 const llmFinalAnswerSchema = z.object({
   answer: z.string(),
@@ -59,7 +43,6 @@ const llmFinalAnswerSchema = z.object({
   recommendedNextQuestions: z.array(z.string()),
 });
 
-type LlmPlanDraft = z.infer<typeof llmPlanDraftSchema>;
 
 export class PlannerUnavailableError extends Error {
   constructor(message: string) {
@@ -74,6 +57,153 @@ export class PlannerExecutionError extends Error {
     this.name = "PlannerExecutionError";
   }
 }
+
+export class PlanExecutionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PlanExecutionError";
+  }
+}
+
+const plannerBindingReferenceSchema = z.discriminatedUnion("source", [
+  z.object({ source: z.literal("question") }).strict(),
+  z
+    .object({
+      source: z.literal("currentStep"),
+      field: z.enum(["title", "rationale"]),
+    })
+    .strict(),
+  z
+    .object({
+      source: z.literal("stepData"),
+      stepId: z.string().min(1),
+      path: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      source: z.literal("stepArgs"),
+      stepId: z.string().min(1),
+      path: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      source: z.literal("stepOutputSummary"),
+      stepId: z.string().min(1),
+    })
+    .strict(),
+]);
+
+type PlannerBindingReference = z.infer<typeof plannerBindingReferenceSchema>;
+
+function transformPlannerArgsSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
+  const { schema: unwrapped, optional, nullable } = unwrapSchema(schema);
+  let transformed: z.ZodTypeAny;
+
+  if (unwrapped instanceof z.ZodObject) {
+    transformed = z
+      .object(
+        Object.fromEntries(
+          Object.entries(unwrapped.shape).map(([key, value]) => [
+            key,
+            transformPlannerArgsSchema(value as z.ZodTypeAny),
+          ]),
+        ),
+      )
+      .strict();
+  } else if (unwrapped instanceof z.ZodArray) {
+    transformed = z.array(transformPlannerArgsSchema(unwrapped.element));
+  } else {
+    transformed = unwrapped;
+  }
+
+  if (optional || nullable) {
+    transformed = transformed.nullable();
+  }
+
+  return transformed;
+}
+
+function transformPlannerBindingsSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
+  const { schema: unwrapped, optional, nullable } = unwrapSchema(schema);
+
+  if (unwrapped instanceof z.ZodObject) {
+    let transformed: z.ZodTypeAny = z
+      .object(
+        Object.fromEntries(
+          Object.entries(unwrapped.shape).map(([key, value]) => [
+            key,
+            transformPlannerBindingsSchema(value as z.ZodTypeAny),
+          ]),
+        ),
+      )
+      .strict();
+
+    if (optional || nullable) {
+      transformed = transformed.nullable();
+    }
+
+    return transformed;
+  }
+
+  let transformed: z.ZodTypeAny = plannerBindingReferenceSchema.nullable();
+  if (optional || nullable) {
+    transformed = transformed.nullable();
+  }
+  return transformed;
+}
+
+function buildPlannerStepSchema(toolId: ExecutableToolId): z.ZodObject<any> {
+  const toolDefinition = requireToolDefinition(toolId);
+  return z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      rationale: z.string(),
+      toolId: z.literal(toolId),
+      args: transformPlannerArgsSchema(toolDefinition.argsSchema),
+      dependsOn: z.array(z.string()),
+      inputBindings: transformPlannerBindingsSchema(toolDefinition.argsSchema),
+    })
+    .strict();
+}
+
+function buildStepRepairSchema(toolId: ExecutableToolId): z.ZodObject<any> {
+  const plannerStepSchema = plannerStepSchemaByToolId[toolId];
+  return z
+    .object({
+      args: plannerStepSchema.shape.args,
+      inputBindings: plannerStepSchema.shape.inputBindings,
+    })
+    .strict();
+}
+
+const plannerStepSchemaByToolId = Object.fromEntries(
+  executableToolIdValues.map((toolId) => [toolId, buildPlannerStepSchema(toolId)]),
+) as Record<ExecutableToolId, z.ZodObject<any>>;
+
+const llmPlanStepSchema = z.discriminatedUnion(
+  "toolId",
+  executableToolIdValues.map((toolId) => plannerStepSchemaByToolId[toolId]) as any,
+);
+
+const llmPlanDraftSchema = z.object({
+  objective: z.string(),
+  assumptions: z.array(z.string()),
+  steps: z.array(llmPlanStepSchema).min(1),
+  expectedOutput: z.object({
+    format: z.literal("json"),
+    sections: z.array(z.string()).min(1),
+  }),
+});
+
+const stepRepairSchemaByToolId = Object.fromEntries(
+  executableToolIdValues.map((toolId) => [toolId, buildStepRepairSchema(toolId)]),
+) as Record<ExecutableToolId, z.ZodObject<any>>;
+
+type LlmPlanStep = z.infer<typeof llmPlanStepSchema>;
+type LlmPlanDraft = z.infer<typeof llmPlanDraftSchema>;
 
 function buildSummaryBullets(text: string, maxBullets: number) {
   const compact = text.replace(/\s+/g, " ").trim();
@@ -104,8 +234,8 @@ function requireToolDefinition(toolId: string) {
   return toolDefinition;
 }
 
-function strictToolParameters(toolId: string) {
-  return requireToolDefinition(toolId).argsSchema.strict();
+function specialistToolParameters(toolId: string) {
+  return requireToolDefinition(toolId).argsSchema.strip();
 }
 
 const vectorSearchToolDefinition = requireToolDefinition("vector_search");
@@ -122,7 +252,7 @@ const statsQueryAgentToolDefinition = requireToolDefinition("stats_query_agent")
 const vectorSearchTool = tool({
   name: vectorSearchToolDefinition.toolId,
   description: vectorSearchToolDefinition.description,
-  parameters: strictToolParameters(vectorSearchToolDefinition.toolId),
+  parameters: specialistToolParameters(vectorSearchToolDefinition.toolId),
   async execute(input) {
     return searchMessagesByMockVector(input.query, input.topK);
   },
@@ -131,7 +261,7 @@ const vectorSearchTool = tool({
 const summarizationTool = tool({
   name: summarizationToolDefinition.toolId,
   description: summarizationToolDefinition.description,
-  parameters: strictToolParameters(summarizationToolDefinition.toolId),
+  parameters: specialistToolParameters(summarizationToolDefinition.toolId),
   async execute(input) {
     return {
       source: "dummy-summarizer",
@@ -143,20 +273,16 @@ const summarizationTool = tool({
 const dbStatsQueryTool = tool({
   name: dbStatsQueryToolDefinition.toolId,
   description: dbStatsQueryToolDefinition.description,
-  parameters: strictToolParameters(dbStatsQueryToolDefinition.toolId),
+  parameters: specialistToolParameters(dbStatsQueryToolDefinition.toolId),
   async execute(input) {
-    return runStatsQuery({
-      metric: input.metric,
-      lastDays: input.lastDays ?? undefined,
-      limit: input.limit ?? undefined,
-    } as StatsQueryInput);
+    return runStatsQuery(parseDbStatsQueryInput(input));
   },
 });
 
 const audienceLookupTool = tool({
   name: audienceLookupToolDefinition.toolId,
   description: audienceLookupToolDefinition.description,
-  parameters: strictToolParameters(audienceLookupToolDefinition.toolId),
+  parameters: specialistToolParameters(audienceLookupToolDefinition.toolId),
   async execute(input) {
     return lookupAudienceSegments(input.question);
   },
@@ -165,7 +291,7 @@ const audienceLookupTool = tool({
 const influencerLookupTool = tool({
   name: influencerLookupToolDefinition.toolId,
   description: influencerLookupToolDefinition.description,
-  parameters: strictToolParameters(influencerLookupToolDefinition.toolId),
+  parameters: specialistToolParameters(influencerLookupToolDefinition.toolId),
   async execute(input) {
     return lookupInfluencers(input.narrative);
   },
@@ -174,7 +300,7 @@ const influencerLookupTool = tool({
 const narrativeProbeTool = tool({
   name: narrativeProbeToolDefinition.toolId,
   description: narrativeProbeToolDefinition.description,
-  parameters: strictToolParameters(narrativeProbeToolDefinition.toolId),
+  parameters: specialistToolParameters(narrativeProbeToolDefinition.toolId),
   async execute(input) {
     return buildNarrativeProbe(input.question);
   },
@@ -183,7 +309,7 @@ const narrativeProbeTool = tool({
 const latestNarrativesTimeframeTool = tool({
   name: latestNarrativesToolDefinition.toolId,
   description: latestNarrativesToolDefinition.description,
-  parameters: strictToolParameters(latestNarrativesToolDefinition.toolId),
+  parameters: specialistToolParameters(latestNarrativesToolDefinition.toolId),
   async execute(input) {
     return latestNarrativesInTimeframe(input.timeframeDays, input.limit);
   },
@@ -255,12 +381,14 @@ const plannerAgent = new Agent({
   instructions: [
     "Build an execution plan for the question.",
     "Use only registered toolIds from the provided executable tool registry.",
-    "Return executable steps with toolId, argsJson, dependsOn, and inputBindingsJson.",
-    "argsJson must be a JSON string encoding an object, for example {\"metric\":\"political_leaning_distribution\",\"lastDays\":30}.",
-    "inputBindingsJson must be a JSON string encoding an object whose values are strings.",
+    "Return executable steps with toolId, args, dependsOn, and inputBindings.",
+    "Return args using the selected tool's exact arg object shape.",
+    "Set optional arg fields to null when unused.",
     "The runtime dispatches by toolId, not by free-text tool names.",
     "Only use dependsOn references to earlier steps.",
-    "Use inputBindingsJson when step args depend on previous outputs.",
+    "Use inputBindings when step args depend on previous outputs.",
+    "Return inputBindings using the same object shape as args, but with binding reference objects at leaf fields and null when a field has no binding.",
+    "If inputBindings references a prior step, include that step id in dependsOn.",
     "Prefer 3-6 steps and keep titles/rationales concrete.",
   ].join(" "),
   outputType: llmPlanDraftSchema,
@@ -273,12 +401,32 @@ const reviserAgent = new Agent({
     "Revise the existing plan according to user feedback.",
     "Preserve executable toolIds and return an executable plan.",
     "Use only registered toolIds from the provided executable tool registry.",
-    "Return argsJson as a JSON string encoding an object for each step.",
-    "Return inputBindingsJson as a JSON string encoding an object with string values for each step.",
+    "Return args using each selected tool's exact arg object shape.",
+    "Set optional arg fields to null when unused.",
+    "Return inputBindings using the same object shape as args, but with binding reference objects at leaf fields and null when a field has no binding.",
+    "If inputBindings references a prior step, include that step id in dependsOn.",
     "Return complete plan JSON only.",
   ].join(" "),
   outputType: llmPlanDraftSchema,
 });
+
+function createStepArgsRepairAgent(toolId: ExecutableToolId) {
+  return new Agent({
+    name: "StepArgsRepair",
+    model: MODEL_NAME,
+    instructions: [
+      "Regenerate args for a revised plan step when its toolId changed.",
+      "Return args and inputBindings only.",
+      "Use the selected tool's exact arg object shape.",
+      "Set optional arg fields to null when unused.",
+      "Return inputBindings using the same object shape as args, but with binding reference objects at leaf fields and null when a field has no binding.",
+      "Regenerate args from scratch for the new tool schema instead of carrying over args from the previous tool.",
+      "Prefer simple valid args over over-specified args.",
+      "If inputBindings references a prior step, include that step id in dependsOn.",
+    ].join(" "),
+    outputType: stepRepairSchemaByToolId[toolId],
+  });
+}
 
 const synthesisAgent = new Agent({
   name: "Synthesizer",
@@ -294,27 +442,51 @@ function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
   return {
     objective: plan.objective,
     assumptions: plan.assumptions,
-    steps: plan.steps.map((step, idx) => {
+    steps: plan.steps.map((step) => {
       const toolDefinition = getExecutableToolDefinition(step.toolId);
       if (!toolDefinition) {
         throw new Error(`Unknown toolId in plan: ${step.toolId}`);
       }
 
+      const normalizedStepId = normalizePlannedStepId(step.id, seenStepIds);
+      const normalizedDependsOn = normalizePlannedDependsOn(
+        step.dependsOn,
+        normalizedStepId,
+        seenStepIds,
+      );
+      const parsedBindings = normalizePlannedInputBindings(
+        normalizedStepId,
+        toolDefinition,
+        step.inputBindings,
+      );
+      validatePlannedBindingSources(
+        normalizedStepId,
+        parsedBindings,
+        normalizedDependsOn,
+        seenStepIds,
+      );
+      const normalizedArgs = validatePlannedStepArgs(
+        normalizedStepId,
+        toolDefinition,
+        compactPlannerArgs(step.args),
+      );
+      validateRequiredPlannedInputs(
+        normalizedStepId,
+        toolDefinition,
+        normalizedArgs,
+        parsedBindings,
+      );
+
       const normalized: PlanStep = {
-        id:
-          step.id.trim() && !seenStepIds.has(step.id.trim())
-            ? step.id.trim()
-            : `step-${idx + 1}`,
+        id: normalizedStepId,
         title: step.title,
         rationale: step.rationale,
         owner: toolDefinition.owner,
         tool: toolDefinition.label,
         toolId: step.toolId,
-        args: parsePlannerArgs(step.argsJson, step.id),
-        dependsOn: parsePlannerDependsOn(step.dependsOn, step.id).filter((dependency) =>
-          seenStepIds.has(dependency),
-        ),
-        inputBindings: parsePlannerInputBindings(step.inputBindingsJson, step.id),
+        args: normalizedArgs,
+        dependsOn: normalizedDependsOn,
+        inputBindings: parsedBindings,
         status: "pending",
       };
 
@@ -329,48 +501,480 @@ function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
   };
 }
 
-function parsePlannerArgs(argsJson: string, stepId: string): PlanStep["args"] {
-  try {
-    const parsed = JSON.parse(argsJson) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error("argsJson must decode to an object");
-    }
-    return parsed as PlanStep["args"];
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown JSON parse error";
-    throw new PlannerExecutionError(`Planner returned invalid argsJson for ${stepId}: ${message}`);
-  }
+function formatZodIssues(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ");
 }
 
-function parsePlannerDependsOn(dependsOn: string[], stepId: string): string[] {
+function unwrapSchema(
+  schema: z.ZodTypeAny,
+): { schema: z.ZodTypeAny; optional: boolean; nullable: boolean } {
+  let current = schema;
+  let optional = false;
+  let nullable = false;
+
+  while (true) {
+    if (current instanceof z.ZodOptional) {
+      optional = true;
+      current = current.unwrap();
+      continue;
+    }
+
+    if (current instanceof z.ZodNullable) {
+      nullable = true;
+      current = current.unwrap();
+      continue;
+    }
+
+    if (current instanceof z.ZodDefault) {
+      optional = true;
+      current = current.removeDefault();
+      continue;
+    }
+
+    break;
+  }
+
+  return { schema: current, optional, nullable };
+}
+
+function normalizePlannedStepId(stepId: string, seenStepIds: Set<string>): string {
+  const normalized = stepId.trim();
+  if (!normalized) {
+    throw new PlannerExecutionError("Planner returned an empty step id.");
+  }
+
+  if (seenStepIds.has(normalized)) {
+    throw new PlannerExecutionError(`Planner returned duplicate step id "${normalized}".`);
+  }
+
+  return normalized;
+}
+
+function normalizePlannedDependsOn(
+  dependsOn: string[],
+  stepId: string,
+  seenStepIds: Set<string>,
+): string[] {
   if (!Array.isArray(dependsOn) || dependsOn.some((value) => typeof value !== "string")) {
     throw new PlannerExecutionError(`Planner returned invalid dependsOn for ${stepId}.`);
   }
-  return dependsOn;
+
+  const normalizedDependencies: string[] = [];
+  const seenDependencies = new Set<string>();
+
+  for (const dependency of dependsOn) {
+    const normalizedDependency = dependency.trim();
+    if (!normalizedDependency) {
+      throw new PlannerExecutionError(
+        `Planner returned an empty dependency reference for ${stepId}.`,
+      );
+    }
+
+    if (!seenStepIds.has(normalizedDependency)) {
+      throw new PlannerExecutionError(
+        `Planner returned unknown or forward dependency "${normalizedDependency}" for ${stepId}. Dependencies must reference earlier steps.`,
+      );
+    }
+
+    if (seenDependencies.has(normalizedDependency)) {
+      throw new PlannerExecutionError(
+        `Planner returned duplicate dependency "${normalizedDependency}" for ${stepId}.`,
+      );
+    }
+
+    normalizedDependencies.push(normalizedDependency);
+    seenDependencies.add(normalizedDependency);
+  }
+
+  return normalizedDependencies;
 }
 
-function parsePlannerInputBindings(
-  inputBindingsJson: string,
-  stepId: string,
-): PlanStep["inputBindings"] {
-  try {
-    const parsed = JSON.parse(inputBindingsJson) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error("inputBindingsJson must decode to an object");
+function getSchemaForArgPath(
+  schema: z.ZodTypeAny,
+  argPath: string,
+): z.ZodTypeAny | null {
+  const segments = argPath.split(".").filter(Boolean);
+  if (segments.length === 0) {
+    return null;
+  }
+
+  let current: z.ZodTypeAny = schema;
+  for (const segment of segments) {
+    const { schema: unwrapped } = unwrapSchema(current);
+    if (!(unwrapped instanceof z.ZodObject)) {
+      return null;
     }
 
-    for (const value of Object.values(parsed)) {
-      if (typeof value !== "string") {
-        throw new Error("inputBindingsJson values must be strings");
+    const next = unwrapped.shape[segment];
+    if (!next) {
+      return null;
+    }
+
+    current = next;
+  }
+
+  return current;
+}
+
+function compactNullableStructuredValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => compactNullableStructuredValue(entry))
+      .filter((entry): entry is Exclude<typeof entry, undefined> => entry !== undefined);
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.entries(value).flatMap(([key, entry]) => {
+      const compactEntry = compactNullableStructuredValue(entry);
+      return compactEntry === undefined ? [] : [[key, compactEntry] as const];
+    });
+
+    if (entries.length === 0) {
+      return undefined;
+    }
+
+    return Object.fromEntries(entries);
+  }
+
+  return value;
+}
+
+function compactPlannerArgs(rawArgs: unknown): Record<string, unknown> {
+  const compact = compactNullableStructuredValue(rawArgs);
+  if (compact === undefined) {
+    return {};
+  }
+
+  if (!compact || typeof compact !== "object" || Array.isArray(compact)) {
+    throw new PlannerExecutionError("Planner returned invalid args: expected an object.");
+  }
+
+  return compact as Record<string, unknown>;
+}
+
+function serializeBindingReference(binding: PlannerBindingReference): string {
+  switch (binding.source) {
+    case "question":
+      return "question";
+    case "currentStep":
+      return `currentStep.${binding.field}`;
+    case "stepData":
+      return `steps.${binding.stepId}.data.${binding.path}`;
+    case "stepArgs":
+      return `steps.${binding.stepId}.args.${binding.path}`;
+    case "stepOutputSummary":
+      return `steps.${binding.stepId}.outputSummary`;
+  }
+}
+
+function parseSerializedBindingReference(binding: string): PlannerBindingReference {
+  const normalized = binding.startsWith("$") ? binding.slice(1) : binding;
+
+  if (normalized === "question") {
+    return { source: "question" };
+  }
+
+  if (normalized === "currentStep.title") {
+    return { source: "currentStep", field: "title" };
+  }
+
+  if (normalized === "currentStep.rationale") {
+    return { source: "currentStep", field: "rationale" };
+  }
+
+  if (normalized.startsWith("steps.")) {
+    const [, stepId, source, ...path] = normalized.split(".");
+    if (!stepId || !source) {
+      throw new PlannerExecutionError(`Current plan contains malformed binding "${binding}".`);
+    }
+
+    if (source === "data") {
+      if (path.length === 0) {
+        throw new PlannerExecutionError(`Current plan contains malformed binding "${binding}".`);
       }
+      return { source: "stepData", stepId, path: path.join(".") };
     }
 
-    return parsed as PlanStep["inputBindings"];
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown JSON parse error";
+    if (source === "args") {
+      if (path.length === 0) {
+        throw new PlannerExecutionError(`Current plan contains malformed binding "${binding}".`);
+      }
+      return { source: "stepArgs", stepId, path: path.join(".") };
+    }
+
+    if (source === "outputSummary" && path.length === 0) {
+      return { source: "stepOutputSummary", stepId };
+    }
+  }
+
+  throw new PlannerExecutionError(
+    `Current plan contains unsupported binding "${binding}" that cannot be serialized for planner revision.`,
+  );
+}
+
+function flattenPlannerInputBindingsInto(
+  value: unknown,
+  schema: z.ZodTypeAny,
+  path: string[],
+  target: Record<string, string>,
+): void {
+  if (value === null || value === undefined) {
+    return;
+  }
+
+  const { schema: unwrapped } = unwrapSchema(schema);
+
+  if (unwrapped instanceof z.ZodObject) {
+    if (typeof value !== "object" || Array.isArray(value)) {
+      throw new PlannerExecutionError(
+        "Planner returned invalid inputBindings: expected an object mirroring the tool args shape.",
+      );
+    }
+
+    for (const [key, childSchema] of Object.entries(unwrapped.shape)) {
+      flattenPlannerInputBindingsInto(
+        (value as Record<string, unknown>)[key],
+        childSchema as z.ZodTypeAny,
+        [...path, key],
+        target,
+      );
+    }
+    return;
+  }
+
+  const parsedBinding = plannerBindingReferenceSchema.safeParse(value);
+  if (!parsedBinding.success) {
     throw new PlannerExecutionError(
-      `Planner returned invalid inputBindingsJson for ${stepId}: ${message}`,
+      "Planner returned invalid inputBindings: expected binding reference objects or null at leaf fields.",
     );
+  }
+
+  if (parsedBinding.data) {
+    if (path.length === 0) {
+      throw new PlannerExecutionError(
+        "Planner returned invalid inputBindings: root binding must be an object.",
+      );
+    }
+    target[path.join(".")] = serializeBindingReference(parsedBinding.data);
+  }
+}
+
+function flattenPlannerInputBindings(
+  rawInputBindings: unknown,
+  argsSchema: z.ZodTypeAny,
+): Record<string, string> {
+  if (rawInputBindings === null || rawInputBindings === undefined) {
+    return {};
+  }
+
+  if (!rawInputBindings || typeof rawInputBindings !== "object" || Array.isArray(rawInputBindings)) {
+    throw new PlannerExecutionError("Planner returned invalid inputBindings: expected an object.");
+  }
+
+  const flattened: Record<string, string> = {};
+  flattenPlannerInputBindingsInto(rawInputBindings, argsSchema, [], flattened);
+  return flattened;
+}
+
+function hasNonNullStructuredValue(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((entry) => hasNonNullStructuredValue(entry));
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value).some((entry) => hasNonNullStructuredValue(entry));
+  }
+
+  return true;
+}
+
+function serializePlannerArgsValue(schema: z.ZodTypeAny, value: unknown): unknown {
+  const { schema: unwrapped, optional, nullable } = unwrapSchema(schema);
+
+  if (unwrapped instanceof z.ZodObject) {
+    const objectValue =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : undefined;
+    const serialized = Object.fromEntries(
+      Object.entries(unwrapped.shape).map(([key, childSchema]) => [
+        key,
+        serializePlannerArgsValue(childSchema as z.ZodTypeAny, objectValue?.[key]),
+      ]),
+    );
+
+    if ((optional || nullable) && !hasNonNullStructuredValue(serialized)) {
+      return null;
+    }
+
+    return serialized;
+  }
+
+  if (value === undefined) {
+    return null;
+  }
+
+  return value;
+}
+
+function serializePlannerBindingsValue(
+  schema: z.ZodTypeAny,
+  inputBindings: Record<string, string>,
+  path: string[] = [],
+): unknown {
+  const { schema: unwrapped, optional, nullable } = unwrapSchema(schema);
+
+  if (unwrapped instanceof z.ZodObject) {
+    const serialized = Object.fromEntries(
+      Object.entries(unwrapped.shape).map(([key, childSchema]) => [
+        key,
+        serializePlannerBindingsValue(childSchema as z.ZodTypeAny, inputBindings, [...path, key]),
+      ]),
+    );
+
+    if ((optional || nullable) && !hasNonNullStructuredValue(serialized)) {
+      return null;
+    }
+
+    return serialized;
+  }
+
+  const binding = inputBindings[path.join(".")];
+  return binding ? parseSerializedBindingReference(binding) : null;
+}
+
+function normalizePlannedInputBindings(
+  stepId: string,
+  toolDefinition: ToolDefinition,
+  rawInputBindings: unknown,
+): PlanStep["inputBindings"] {
+  const inputBindings = flattenPlannerInputBindings(rawInputBindings, toolDefinition.argsSchema);
+
+  for (const argPath of Object.keys(inputBindings ?? {})) {
+    if (!getSchemaForArgPath(toolDefinition.argsSchema, argPath)) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid input binding target "${argPath}" for ${stepId} (${toolDefinition.toolId}).`,
+      );
+    }
+  }
+
+  return inputBindings;
+}
+
+function validatePlannedBindingSources(
+  stepId: string,
+  inputBindings: PlanStep["inputBindings"],
+  dependsOn: string[],
+  seenStepIds: Set<string>,
+): void {
+  const allowedDependencies = new Set(dependsOn);
+
+  for (const [argPath, rawBinding] of Object.entries(inputBindings ?? {})) {
+    const binding = rawBinding.startsWith("$") ? rawBinding.slice(1) : rawBinding;
+    if (
+      binding === "question" ||
+      binding === "currentStep.title" ||
+      binding === "currentStep.rationale"
+    ) {
+      continue;
+    }
+
+    if (!binding.startsWith("steps.")) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid binding source "${rawBinding}" for ${stepId}.${argPath}. inputBindings may only contain binding references, not literal values.`,
+      );
+    }
+
+    const [, dependencyId, source, ...path] = binding.split(".");
+    if (!dependencyId || !source) {
+      throw new PlannerExecutionError(
+        `Planner returned malformed binding source "${rawBinding}" for ${stepId}.${argPath}.`,
+      );
+    }
+
+    if (!seenStepIds.has(dependencyId)) {
+      throw new PlannerExecutionError(
+        `Planner returned unknown or forward binding source "${rawBinding}" for ${stepId}.${argPath}.`,
+      );
+    }
+
+    if (!allowedDependencies.has(dependencyId)) {
+      throw new PlannerExecutionError(
+        `Planner returned binding source "${rawBinding}" for ${stepId}.${argPath} without listing "${dependencyId}" in dependsOn.`,
+      );
+    }
+
+    if (source !== "data" && source !== "args" && source !== "outputSummary") {
+      throw new PlannerExecutionError(
+        `Planner returned invalid binding source "${rawBinding}" for ${stepId}.${argPath}.`,
+      );
+    }
+
+    if (source === "outputSummary" && path.length > 0) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid outputSummary binding "${rawBinding}" for ${stepId}.${argPath}.`,
+      );
+    }
+  }
+}
+
+function validateRequiredPlannedInputs(
+  stepId: string,
+  toolDefinition: ToolDefinition,
+  args: PlanStep["args"],
+  inputBindings: PlanStep["inputBindings"],
+): void {
+  const requiredArgRoots = (Object.entries(toolDefinition.argsSchema.shape) as Array<
+    [string, z.ZodTypeAny]
+  >)
+    .filter(([, schema]) => !unwrapSchema(schema).optional)
+    .map(([key]) => key);
+  const providedArgRoots = new Set([
+    ...Object.keys(args ?? {}),
+    ...Object.keys(inputBindings ?? {}).map((path) => path.split(".")[0]),
+  ]);
+  const missingArgRoots = requiredArgRoots.filter((argRoot) => !providedArgRoots.has(argRoot));
+
+  if (missingArgRoots.length > 0) {
+    throw new PlannerExecutionError(
+      `Planner omitted required args for ${stepId} (${toolDefinition.toolId}): ${missingArgRoots.join(", ")}`,
+    );
+  }
+}
+
+function validatePlannedStepArgs(
+  stepId: string,
+  toolDefinition: ToolDefinition,
+  rawArgs: Record<string, unknown>,
+): PlanStep["args"] {
+  const normalizedArgs = normalizeToolArgs(toolDefinition.toolId, rawArgs);
+  try {
+    const parsedArgs =
+      toolDefinition.toolId === "db_stats_query"
+        ? parsePartialDbStatsQueryInput(normalizedArgs)
+        : toolDefinition.argsSchema.partial().parse(normalizedArgs);
+
+    return parsedArgs as PlanStep["args"];
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid args for ${stepId} (${toolDefinition.toolId}): ${formatZodIssues(error)}`,
+      );
+    }
+    throw error;
   }
 }
 
@@ -382,10 +986,7 @@ function normalizeToolArgs(
     return args;
   }
 
-  return {
-    ...args,
-    metric: normalizeStatsMetric(args.metric),
-  };
+  return normalizeDbStatsQueryInput(args);
 }
 
 function serializePlanForPlanner(plan: PlanDraft) {
@@ -397,11 +998,141 @@ function serializePlanForPlanner(plan: PlanDraft) {
       title: step.title,
       rationale: step.rationale,
       toolId: step.toolId,
-      argsJson: JSON.stringify(step.args ?? {}),
+      args:
+        step.toolId in plannerStepSchemaByToolId
+          ? serializePlannerArgsValue(
+              plannerStepSchemaByToolId[step.toolId as ExecutableToolId].shape.args,
+              step.args ?? {},
+            )
+          : step.args ?? {},
       dependsOn: step.dependsOn,
-      inputBindingsJson: JSON.stringify(step.inputBindings ?? {}),
+      inputBindings:
+        step.toolId in plannerStepSchemaByToolId
+          ? serializePlannerBindingsValue(
+              plannerStepSchemaByToolId[step.toolId as ExecutableToolId].shape.inputBindings,
+              step.inputBindings ?? {},
+            )
+          : step.inputBindings ?? {},
     })),
     expectedOutput: plan.expectedOutput,
+  };
+}
+
+function formatRevisionHistory(revisionHistory: string[]): string {
+  const normalizedRevisionHistory = revisionHistory
+    .map((note) => note.trim())
+    .filter((note) => note.length > 0);
+
+  return normalizedRevisionHistory.length > 0
+    ? normalizedRevisionHistory.map((note, index) => `${index + 1}. ${note}`).join("\n")
+    : "(none)";
+}
+
+async function regenerateChangedStepArgs(
+  question: string,
+  currentPlan: PlanDraft,
+  revisedStep: LlmPlanStep,
+  currentStep: PlanStep,
+  feedback: string,
+  revisionHistory: string[],
+): Promise<LlmPlanStep> {
+  const serializedCurrentStep =
+    serializePlanForPlanner(currentPlan).steps.find((step) => step.id === currentStep.id) ?? {
+      id: currentStep.id,
+      title: currentStep.title,
+      rationale: currentStep.rationale,
+      toolId: currentStep.toolId,
+      args: currentStep.args ?? {},
+      dependsOn: currentStep.dependsOn,
+      inputBindings: currentStep.inputBindings ?? {},
+    };
+
+  const prompt = [
+    `Question:\n${question}`,
+    "",
+    "Revision history for this plan:",
+    formatRevisionHistory(revisionHistory),
+    "",
+    `Latest revision request:\n${feedback}`,
+    "",
+    "Executable tool registry:",
+    describeExecutableTools(),
+    "",
+    "Binding syntax:",
+    '- Use `dependsOn` with earlier step ids only.',
+    '- Return `args` using the selected tool\'s exact arg object shape.',
+    '- Set optional arg fields to `null` when unused.',
+    '- Return `inputBindings` using the same object shape as `args`.',
+    '- Any step referenced by `inputBindings` must also be listed in `dependsOn`.',
+    '- Put literal values directly in `args`. `inputBindings` is only for references.',
+    '- At leaf fields in `inputBindings`, set a binding object or `null`.',
+    '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
+    '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
+    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    "",
+    `Current step before revision:\n${JSON.stringify(serializedCurrentStep, null, 2)}`,
+    "",
+    `Revised step metadata:\n${JSON.stringify(
+      {
+        id: revisedStep.id,
+        title: revisedStep.title,
+        rationale: revisedStep.rationale,
+        toolId: revisedStep.toolId,
+        dependsOn: revisedStep.dependsOn,
+      },
+      null,
+      2,
+    )}`,
+    "",
+    "The toolId changed for this step. Regenerate args and inputBindings from scratch for the revised tool schema. Do not reuse the previous tool args or bindings.",
+  ].join("\n");
+
+  const revisedToolId = revisedStep.toolId as ExecutableToolId;
+  const repaired = await runStructuredAgentWithRetry(
+    createStepArgsRepairAgent(revisedToolId),
+    prompt,
+    (output) => stepRepairSchemaByToolId[revisedToolId].parse(output),
+  );
+
+  return {
+    ...revisedStep,
+    args: repaired.args,
+    inputBindings: repaired.inputBindings,
+  };
+}
+
+async function regenerateArgsForChangedToolSteps(
+  question: string,
+  currentPlan: PlanDraft,
+  revisedPlan: LlmPlanDraft,
+  feedback: string,
+  revisionHistory: string[],
+): Promise<LlmPlanDraft> {
+  const currentStepsById = new Map(currentPlan.steps.map((step) => [step.id, step]));
+  const repairedSteps: LlmPlanStep[] = [];
+
+  for (const revisedStep of revisedPlan.steps) {
+    const currentStep = currentStepsById.get(revisedStep.id.trim());
+    if (!currentStep || currentStep.toolId === revisedStep.toolId) {
+      repairedSteps.push(revisedStep);
+      continue;
+    }
+
+    repairedSteps.push(
+      await regenerateChangedStepArgs(
+        question,
+        currentPlan,
+        revisedStep,
+        currentStep,
+        feedback,
+        revisionHistory,
+      ),
+    );
+  }
+
+  return {
+    ...revisedPlan,
+    steps: repairedSteps,
   };
 }
 
@@ -436,6 +1167,7 @@ function setObjectPath(target: Record<string, unknown>, path: string, value: unk
 }
 
 function resolveBindingValue(
+  argPath: string,
   binding: string,
   question: string,
   step: PlanStep,
@@ -460,21 +1192,36 @@ function resolveBindingValue(
     const [, stepId, source, ...path] = normalized.split(".");
     const referencedStep = plan.steps.find((candidate) => candidate.id === stepId);
     const artifact = artifacts.find((candidate) => candidate.stepId === stepId);
+    let resolvedValue: unknown;
 
     if (source === "data") {
-      return getObjectPath(artifact?.data, path);
+      resolvedValue = getObjectPath(artifact?.data, path);
+    } else if (source === "args") {
+      resolvedValue = getObjectPath(referencedStep?.args, path);
+    } else if (source === "outputSummary") {
+      if (typeof referencedStep?.outputSummary === "string") {
+        resolvedValue = referencedStep.outputSummary;
+      } else if (
+        artifact?.data &&
+        typeof artifact.data === "object" &&
+        !Array.isArray(artifact.data)
+      ) {
+        resolvedValue = summarizeStepData(artifact.data);
+      }
     }
 
-    if (source === "args") {
-      return getObjectPath(referencedStep?.args, path);
+    if (resolvedValue === undefined) {
+      throw new PlanExecutionError(
+        `Step ${step.id} could not resolve binding "${binding}" for "${argPath}".`,
+      );
     }
 
-    if (source === "outputSummary") {
-      return referencedStep?.outputSummary;
-    }
+    return resolvedValue;
   }
 
-  return binding;
+  throw new PlanExecutionError(
+    `Step ${step.id} has invalid binding "${binding}" for "${argPath}". inputBindings must contain only binding references.`,
+  );
 }
 
 function resolveStepArgs(
@@ -486,10 +1233,8 @@ function resolveStepArgs(
   const clonedArgs = JSON.parse(JSON.stringify(step.args ?? {})) as Record<string, unknown>;
 
   for (const [argPath, binding] of Object.entries(step.inputBindings ?? {})) {
-    const resolvedValue = resolveBindingValue(binding, question, step, plan, artifacts);
-    if (resolvedValue !== undefined) {
-      setObjectPath(clonedArgs, argPath, resolvedValue);
-    }
+    const resolvedValue = resolveBindingValue(argPath, binding, question, step, plan, artifacts);
+    setObjectPath(clonedArgs, argPath, resolvedValue);
   }
 
   return clonedArgs;
@@ -504,6 +1249,53 @@ function plannerFailureError(prefix: string, error: unknown) {
   return new PlannerExecutionError(`${prefix}: ${message}`);
 }
 
+function plannerValidationErrorMessage(error: PlannerExecutionError | z.ZodError): string {
+  return error instanceof z.ZodError ? formatZodIssues(error) : error.message;
+}
+
+function buildPlannerRetryPrompt(prompt: string, validationMessage: string): string {
+  return [
+    prompt,
+    "",
+    "Previous attempt failed validation.",
+    `Validation error: ${validationMessage}`,
+    "Return corrected JSON only and fix the validation error exactly.",
+  ].join("\n");
+}
+
+async function runStructuredAgentWithRetry<T>(
+  agent: Agent<any, any>,
+  prompt: string,
+  parseOutput: (output: unknown) => T,
+): Promise<T> {
+  let currentPrompt = prompt;
+  let validationError: PlannerExecutionError | z.ZodError | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await run(agent, currentPrompt);
+
+    try {
+      return parseOutput(result.finalOutput);
+    } catch (error) {
+      if (
+        attempt === 0 &&
+        (error instanceof PlannerExecutionError || error instanceof z.ZodError)
+      ) {
+        validationError = error;
+        currentPrompt = buildPlannerRetryPrompt(
+          prompt,
+          plannerValidationErrorMessage(validationError),
+        );
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw validationError ?? new PlannerExecutionError("Structured agent failed after retry.");
+}
+
 function parseRecordOutput(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     return raw as Record<string, unknown>;
@@ -516,12 +1308,11 @@ function parseRecordOutput(raw: unknown): Record<string, unknown> {
         return parsed as Record<string, unknown>;
       }
     } catch {
-      // No-op; fallback below.
+      // No-op; throw below.
     }
-    return { raw };
   }
 
-  return { raw: JSON.stringify(raw) };
+  throw new PlanExecutionError("Specialist agent returned a non-object response.");
 }
 
 function summarizeStepData(data: Record<string, unknown>): string {
@@ -535,50 +1326,6 @@ function summarizeStepData(data: Record<string, unknown>): string {
   }
 
   return `Returned fields: ${keys.slice(0, 5).join(", ")}${keys.length > 5 ? ", ..." : ""}`;
-}
-
-function pickStatsQuery(question: string): StatsQueryInput {
-  const normalized = question.toLowerCase();
-
-  if (normalized.includes("distribution") || normalized.includes("leaning")) {
-    return { metric: "political_leaning_distribution", lastDays: 30 };
-  }
-
-  if (normalized.includes("influencer") || normalized.includes("group")) {
-    return { metric: "top_groups_by_member_count", limit: 5 };
-  }
-
-  return { metric: "active_messages_last_days", lastDays: 7 };
-}
-
-function fallbackFinalAnswer(question: string, artifacts: ExecutionArtifact[]): FinalAnswer {
-  const keyFindings = artifacts
-    .slice(0, 4)
-    .map((artifact) => `${artifact.owner}: ${summarizeStepData(artifact.data)}`);
-
-  const dataPoints = artifacts.flatMap((artifact) => {
-    const candidates: { label: string; value: string | number | boolean }[] = [];
-    for (const [key, value] of Object.entries(artifact.data)) {
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        candidates.push({ label: `${artifact.owner}.${key}`, value });
-      }
-      if (candidates.length >= 2) {
-        break;
-      }
-    }
-    return candidates;
-  });
-
-  return {
-    answer: `Prototype answer for: ${question}`,
-    keyFindings,
-    dataPoints: dataPoints.slice(0, 8),
-    caveats: [
-      "This run uses Mongo-backed data from the configured collections.",
-      "Audience, narrative extraction, influencer scoring, and vector search still use simplified heuristics.",
-    ],
-    recommendedNextQuestions: getPotentialQuestions().slice(0, 3),
-  };
 }
 
 function buildSpecialistPrompt(
@@ -621,51 +1368,17 @@ async function runWithManagerTool(
   prompt: string,
 ): Promise<Record<string, unknown>> {
   if (!OPENAI_ENABLED) {
-    if (toolName === "audience_builder_agent") {
-      const audience = await lookupAudienceSegments(prompt);
-      const influencers = await lookupInfluencers(null);
-      return {
-        mode: "fallback",
-        tool: toolName,
-        audience,
-        influencers,
-      };
-    }
-
-    if (toolName === "narrative_explorer_agent") {
-      return {
-        mode: "fallback",
-        tool: toolName,
-        latestNarratives: await latestNarrativesInTimeframe(7, 8),
-        relatedMessages: await searchMessagesByMockVector(prompt, 5),
-      };
-    }
-
-    if (toolName === "stats_query_agent") {
-      return {
-        mode: "fallback",
-        tool: toolName,
-        stats: await runStatsQuery(pickStatsQuery(prompt)),
-      };
-    }
-
-    return {
-      mode: "fallback",
-      tool: toolName,
-      note: "OPENAI_API_KEY missing; returned deterministic Mongo-backed fallback output.",
-      prompt,
-    };
+    throw new PlanExecutionError(
+      `Cannot execute specialist tool "${toolName}" without OPENAI_API_KEY.`,
+    );
   }
 
   try {
     const result = await run(specialistManager(toolName), prompt);
     return parseRecordOutput(result.finalOutput);
   } catch (error) {
-    return {
-      mode: "fallback",
-      tool: toolName,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    const message = error instanceof Error ? error.message : "Unknown specialist execution error";
+    throw new PlanExecutionError(`Specialist tool "${toolName}" failed: ${message}`);
   }
 }
 
@@ -675,14 +1388,19 @@ async function executeToolById(
   step: PlanStep,
   artifacts: ExecutionArtifact[],
 ): Promise<StepExecutionResult> {
-  const toolDefinition = getExecutableToolDefinition(step.toolId);
+  const toolDefinition = getToolDefinition(step.toolId);
   if (!toolDefinition) {
-    throw new Error(`Unknown toolId at execution time: ${step.toolId}`);
+    throw new PlanExecutionError(`Unknown toolId at execution time: ${step.toolId}`);
   }
 
-  const resolvedArgs = toolDefinition.argsSchema.parse(
-    normalizeToolArgs(step.toolId, resolveStepArgs(question, step, plan, artifacts)),
-  ) as Record<string, unknown>;
+  const normalizedResolvedArgs = normalizeToolArgs(
+    step.toolId,
+    resolveStepArgs(question, step, plan, artifacts),
+  );
+  const resolvedArgs =
+    step.toolId === "db_stats_query"
+      ? (parseDbStatsQueryInput(normalizedResolvedArgs) as unknown as Record<string, unknown>)
+      : (toolDefinition.argsSchema.parse(normalizedResolvedArgs) as Record<string, unknown>);
 
   switch (step.toolId) {
     case "planning_notes": {
@@ -696,48 +1414,39 @@ async function executeToolById(
     }
 
     case "db_stats_query": {
-      const statsArgs = {
-        ...pickStatsQuery(`${question} ${step.title}`),
-        ...resolvedArgs,
-      } as StatsQueryInput;
-      const data = await runStatsQuery(statsArgs);
+      const data = await runStatsQuery(resolvedArgs as StatsQueryInput);
       return { data, summary: summarizeStepData(data) };
     }
 
     case "find_narratives_in_timeframe": {
-      const timeframeDays =
-        typeof resolvedArgs.timeframeDays === "number" ? resolvedArgs.timeframeDays : 7;
-      const limit = typeof resolvedArgs.limit === "number" ? resolvedArgs.limit : 8;
-      const data = await latestNarrativesInTimeframe(timeframeDays, limit);
+      const data = await latestNarrativesInTimeframe(
+        resolvedArgs.timeframeDays as number,
+        resolvedArgs.limit as number,
+      );
       return { data, summary: summarizeStepData(data) };
     }
 
     case "vector_search": {
-      const query =
-        typeof resolvedArgs.query === "string" && resolvedArgs.query.trim().length > 0
-          ? resolvedArgs.query
-          : question;
-      const topK = typeof resolvedArgs.topK === "number" ? resolvedArgs.topK : 5;
-      const data = await searchMessagesByMockVector(query, topK);
+      const data = await searchMessagesByMockVector(
+        resolvedArgs.query as string,
+        resolvedArgs.topK as number,
+      );
       return { data, summary: summarizeStepData(data) };
     }
 
     case "summarization": {
-      const text = typeof resolvedArgs.text === "string" ? resolvedArgs.text : JSON.stringify(resolvedArgs);
-      const maxBullets = typeof resolvedArgs.maxBullets === "number" ? resolvedArgs.maxBullets : 3;
       const data = {
         source: "dummy-summarizer",
-        bullets: buildSummaryBullets(text, maxBullets),
+        bullets: buildSummaryBullets(
+          resolvedArgs.text as string,
+          resolvedArgs.maxBullets as number,
+        ),
       };
       return { data, summary: summarizeStepData(data) };
     }
 
     case "audience_lookup": {
-      const toolQuestion =
-        typeof resolvedArgs.question === "string" && resolvedArgs.question.trim().length > 0
-          ? resolvedArgs.question
-          : question;
-      const data = await lookupAudienceSegments(toolQuestion);
+      const data = await lookupAudienceSegments(resolvedArgs.question as string);
       return { data, summary: summarizeStepData(data) };
     }
 
@@ -751,11 +1460,7 @@ async function executeToolById(
     }
 
     case "narrative_probe": {
-      const probeQuestion =
-        typeof resolvedArgs.question === "string" && resolvedArgs.question.trim().length > 0
-          ? resolvedArgs.question
-          : question;
-      const data = buildNarrativeProbe(probeQuestion);
+      const data = buildNarrativeProbe(resolvedArgs.question as string);
       return { data, summary: summarizeStepData(data) };
     }
 
@@ -794,10 +1499,7 @@ async function executeToolById(
     }
 
     default: {
-      const data = {
-        note: `Unknown toolId: ${step.toolId}`,
-      };
-      return { data, summary: summarizeStepData(data) };
+      throw new PlanExecutionError(`Unhandled toolId at execution time: ${step.toolId}`);
     }
   }
 }
@@ -815,10 +1517,16 @@ export async function draftPlan(question: string): Promise<PlanDraft> {
     "",
     "Binding syntax:",
     '- Use `dependsOn` with earlier step ids only.',
-    '- Use `inputBindingsJson` to map resolved values into args.',
-    '- Binding values may be `question`, `currentStep.title`, `currentStep.rationale`, `steps.<stepId>.data.<field>`, `steps.<stepId>.args.<field>`, or `steps.<stepId>.outputSummary`.',
-    '- Set `argsJson` to a JSON string that decodes to an object. Example: `{"metric":"political_leaning_distribution","lastDays":30}`.',
-    '- Set `inputBindingsJson` to a JSON string that decodes to an object. Example: `{"metric":"steps.step-2.data.metric"}`.',
+    '- Return `args` using the selected tool\'s exact arg object shape.',
+    '- Set optional arg fields to `null` when unused.',
+    '- Return `inputBindings` using the same object shape as `args`.',
+    '- Any step referenced by `inputBindings` must also be listed in `dependsOn`.',
+    '- Put literal values directly in `args`. `inputBindings` is only for references.',
+    '- At leaf fields in `inputBindings`, set a binding object or `null`.',
+    '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
+    '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
+    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    '- Do not invent input binding target fields like `narratives`, `segments`, `stats`, or `results` unless they are declared args for that tool.',
     "",
     "Reference context:",
     plannerReferenceContext(),
@@ -827,9 +1535,9 @@ export async function draftPlan(question: string): Promise<PlanDraft> {
   ].join("\n");
 
   try {
-    const result = await run(plannerAgent, prompt);
-    const parsed = llmPlanDraftSchema.parse(result.finalOutput);
-    return normalizePlanDraft(parsed);
+    return await runStructuredAgentWithRetry(plannerAgent, prompt, (output) =>
+      normalizePlanDraft(llmPlanDraftSchema.parse(output)),
+    );
   } catch (error) {
     throw plannerFailureError("Planner failed to draft a plan", error);
   }
@@ -853,9 +1561,7 @@ export async function revisePlan(
     `Question:\n${question}`,
     "",
     "Revision history for this plan:",
-    normalizedRevisionHistory.length > 0
-      ? normalizedRevisionHistory.map((note, index) => `${index + 1}. ${note}`).join("\n")
-      : "(none)",
+    formatRevisionHistory(normalizedRevisionHistory),
     "",
     `Latest revision request:\n${feedback}`,
     "",
@@ -864,11 +1570,19 @@ export async function revisePlan(
     "",
     "Binding syntax:",
     '- Use `dependsOn` with earlier step ids only.',
-    '- Use `inputBindingsJson` to map resolved values into args.',
-    '- Binding values may be `question`, `currentStep.title`, `currentStep.rationale`, `steps.<stepId>.data.<field>`, `steps.<stepId>.args.<field>`, or `steps.<stepId>.outputSummary`.',
-    '- Set `argsJson` to a JSON string that decodes to an object. Example: `{"metric":"political_leaning_distribution","lastDays":30}`.',
-    '- Set `inputBindingsJson` to a JSON string that decodes to an object. Example: `{"metric":"steps.step-2.data.metric"}`.',
+    '- Return `args` using the selected tool\'s exact arg object shape.',
+    '- Set optional arg fields to `null` when unused.',
+    '- Return `inputBindings` using the same object shape as `args`.',
+    '- Any step referenced by `inputBindings` must also be listed in `dependsOn`.',
+    '- Put literal values directly in `args`. `inputBindings` is only for references.',
+    '- At leaf fields in `inputBindings`, set a binding object or `null`.',
+    '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
+    '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
+    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    '- Do not invent input binding target fields like `narratives`, `segments`, `stats`, or `results` unless they are declared args for that tool.',
     "- Keep already-accepted revisions unless the latest request explicitly changes them.",
+    "- Preserve existing step ids where possible.",
+    "- If a step changes toolId, regenerate args and inputBindings for the new tool schema instead of reusing the prior tool's args.",
     "",
     `Current plan JSON:\n${JSON.stringify(serializePlanForPlanner(currentPlan), null, 2)}`,
     "",
@@ -876,9 +1590,17 @@ export async function revisePlan(
   ].join("\n");
 
   try {
-    const result = await run(reviserAgent, prompt);
-    const parsed = llmPlanDraftSchema.parse(result.finalOutput);
-    return normalizePlanDraft(parsed);
+    const parsed = await runStructuredAgentWithRetry(reviserAgent, prompt, (output) =>
+      llmPlanDraftSchema.parse(output),
+    );
+    const repaired = await regenerateArgsForChangedToolSteps(
+      question,
+      currentPlan,
+      parsed,
+      feedback,
+      normalizedRevisionHistory,
+    );
+    return normalizePlanDraft(repaired);
   } catch (error) {
     throw plannerFailureError("Planner failed to revise the plan", error);
   }
@@ -899,7 +1621,9 @@ async function executeSingleStep(
   for (const dependency of step.dependsOn) {
     const satisfied = artifacts.some((artifact) => artifact.stepId === dependency);
     if (!satisfied) {
-      throw new Error(`Step ${step.id} cannot run before dependency ${dependency} completes.`);
+      throw new PlanExecutionError(
+        `Step ${step.id} cannot run before dependency ${dependency} completes.`,
+      );
     }
   }
 
@@ -911,7 +1635,7 @@ async function synthesizeFinalAnswer(
   artifacts: ExecutionArtifact[],
 ): Promise<FinalAnswer> {
   if (!OPENAI_ENABLED) {
-    return fallbackFinalAnswer(question, artifacts);
+    throw new PlanExecutionError("Cannot synthesize a final answer without OPENAI_API_KEY.");
   }
 
   const prompt = [
@@ -927,8 +1651,9 @@ async function synthesizeFinalAnswer(
   try {
     const result = await run(synthesisAgent, prompt);
     return llmFinalAnswerSchema.parse(result.finalOutput);
-  } catch {
-    return fallbackFinalAnswer(question, artifacts);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown synthesis error";
+    throw new PlanExecutionError(`Synthesis failed: ${message}`);
   }
 }
 

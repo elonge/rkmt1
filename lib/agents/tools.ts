@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { PlanStepOwner, statsMetricSchema } from "../types";
+import {
+  dbStatsQueryToolInputSchema,
+  PlanStepOwner,
+  statsMetricSchema,
+} from "../types";
 
 export const executableToolIdValues = [
   "db_stats_query",
@@ -11,10 +15,13 @@ export const executableToolIdValues = [
   "narrative_probe",
   "audience_builder_agent",
   "narrative_explorer_agent",
-  "synthesis_agent",
 ] as const;
 
-export const internalOnlyToolIdValues = ["planning_notes", "stats_query_agent"] as const;
+export const internalOnlyToolIdValues = [
+  "planning_notes",
+  "stats_query_agent",
+  "synthesis_agent",
+] as const;
 
 export const toolIdValues = [
   ...executableToolIdValues,
@@ -43,54 +50,48 @@ const planningNotesArgsSchema = z
     question: z.string().optional(),
     focus: z.string().optional(),
   })
-  .passthrough();
+  .strict();
 
-const dbStatsQueryArgsSchema = z
-  .object({
-    metric: statsMetricSchema,
-    lastDays: z.number().int().min(1).max(365).nullable().optional(),
-    limit: z.number().int().min(1).max(50).nullable().optional(),
-  })
-  .passthrough();
+const dbStatsQueryArgsSchema = dbStatsQueryToolInputSchema;
 
 const narrativesArgsSchema = z
   .object({
     timeframeDays: z.number().int().min(1).max(365),
     limit: z.number().int().min(1).max(50),
   })
-  .passthrough();
+  .strict();
 
 const vectorSearchArgsSchema = z
   .object({
     query: z.string(),
     topK: z.number().int().min(1),
   })
-  .passthrough();
+  .strict();
 
 const summarizationArgsSchema = z
   .object({
     text: z.string(),
     maxBullets: z.number().int().min(1),
   })
-  .passthrough();
+  .strict();
 
 const audienceLookupArgsSchema = z
   .object({
     question: z.string(),
   })
-  .passthrough();
+  .strict();
 
 const influencerLookupArgsSchema = z
   .object({
     narrative: z.string().nullable(),
   })
-  .passthrough();
+  .strict();
 
 const narrativeProbeArgsSchema = z
   .object({
     question: z.string(),
   })
-  .passthrough();
+  .strict();
 
 const audienceBuilderAgentArgsSchema = z
   .object({
@@ -98,7 +99,7 @@ const audienceBuilderAgentArgsSchema = z
     focus: z.string().optional(),
     narrative: z.string().nullable().optional(),
   })
-  .passthrough();
+  .strict();
 
 const narrativeExplorerAgentArgsSchema = z
   .object({
@@ -108,21 +109,103 @@ const narrativeExplorerAgentArgsSchema = z
     limit: z.number().int().min(1).max(50).optional(),
     query: z.string().optional(),
   })
-  .passthrough();
+  .strict();
 
 const synthesisAgentArgsSchema = z
   .object({
     sections: z.array(z.string()).optional(),
     emphasis: z.string().optional(),
   })
-  .passthrough();
+  .strict();
 
 const statsQueryAgentArgsSchema = z
   .object({
     question: z.string().optional(),
     focus: z.string().optional(),
   })
-  .passthrough();
+  .strict();
+
+function unwrapSchema(
+  schema: z.ZodTypeAny,
+): { schema: z.ZodTypeAny; optional: boolean; nullable: boolean } {
+  let current = schema;
+  let optional = false;
+  let nullable = false;
+
+  while (true) {
+    if (current instanceof z.ZodOptional) {
+      optional = true;
+      current = current.unwrap();
+      continue;
+    }
+
+    if (current instanceof z.ZodNullable) {
+      nullable = true;
+      current = current.unwrap();
+      continue;
+    }
+
+    if (current instanceof z.ZodDefault) {
+      optional = true;
+      current = current.removeDefault();
+      continue;
+    }
+
+    break;
+  }
+
+  return { schema: current, optional, nullable };
+}
+
+function describeScalarSchema(schema: z.ZodTypeAny): string {
+  const { schema: unwrapped, optional, nullable } = unwrapSchema(schema);
+  let description = "unknown";
+
+  if (unwrapped instanceof z.ZodEnum) {
+    description = `enum(${unwrapped.options.join(" | ")})`;
+  } else if (unwrapped instanceof z.ZodString) {
+    description = "string";
+  } else if (unwrapped instanceof z.ZodNumber) {
+    const checks = unwrapped._def.checks ?? [];
+    const fragments = ["number"];
+    if (checks.some((check) => check.kind === "int")) {
+      fragments[0] = "integer";
+    }
+    const minCheck = checks.find((check) => check.kind === "min");
+    const maxCheck = checks.find((check) => check.kind === "max");
+    if (minCheck && "value" in minCheck) {
+      fragments.push(`min ${minCheck.value}`);
+    }
+    if (maxCheck && "value" in maxCheck) {
+      fragments.push(`max ${maxCheck.value}`);
+    }
+    description = fragments.join(", ");
+  } else if (unwrapped instanceof z.ZodArray) {
+    description = `array<${describeScalarSchema(unwrapped.element)}>`;
+  } else if (unwrapped instanceof z.ZodObject) {
+    description = `object{${describeArgsSchema(unwrapped)}}`;
+  } else if (unwrapped instanceof z.ZodBoolean) {
+    description = "boolean";
+  }
+
+  if (nullable) {
+    description = `${description}, nullable`;
+  }
+  if (optional) {
+    description = `${description}, optional`;
+  }
+
+  return description;
+}
+
+function describeArgsSchema(schema: z.ZodObject<any>): string {
+  const entries = Object.entries(schema.shape) as Array<[string, z.ZodTypeAny]>;
+  if (entries.length === 0) {
+    return "(no args)";
+  }
+
+  return entries.map(([key, value]) => `${key}: ${describeScalarSchema(value)}`).join("; ");
+}
 
 export const toolCatalog: Record<ToolId, ToolDefinition> = {
   planning_notes: {
@@ -140,7 +223,7 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     owner: "stats_query",
     label: "DB Stats Query",
     description:
-      "Run a Mongo-backed stats query for aggregate metrics such as leaning distribution, recent message volume, and top groups.",
+      "Run a Mongo-backed stats query for aggregate metrics such as leaning distribution, recent message volume, and top groups, with optional structured filters like political leaning.",
     argsSchema: dbStatsQueryArgsSchema,
     plannerVisible: true,
     specialistVisible: true,
@@ -238,7 +321,7 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     label: "Synthesis Agent",
     description: "Combine prior step outputs into the final strict JSON answer for the UI.",
     argsSchema: synthesisAgentArgsSchema,
-    plannerVisible: true,
+    plannerVisible: false,
     specialistVisible: false,
     kind: "agent",
   },
@@ -273,9 +356,7 @@ export function describeExecutableTools(): string {
   return executableToolIdValues
     .map((toolId) => {
       const tool = toolCatalog[toolId];
-      const argKeys = Object.keys(tool.argsSchema.shape);
-      const argSummary = argKeys.length > 0 ? argKeys.join(", ") : "(no explicit args)";
-      return `- ${tool.toolId} (owner: ${tool.owner}) — ${tool.description} Args: ${argSummary}`;
+      return `- ${tool.toolId} (owner: ${tool.owner}) — ${tool.description} Args: ${describeArgsSchema(tool.argsSchema)}`;
     })
     .join("\n");
 }

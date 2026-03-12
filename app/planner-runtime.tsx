@@ -15,6 +15,9 @@ type ApiJobResponse = {
 const isPendingApproval = (job: PlanJob | null): boolean =>
   Boolean(job && job.status === "awaiting_approval");
 
+const canRerunPlan = (job: PlanJob | null): boolean =>
+  Boolean(job && (job.status === "completed" || job.status === "failed"));
+
 export default function PlannerRuntime() {
   const { user } = useAuth();
   const [question, setQuestion] = useState("");
@@ -63,6 +66,9 @@ export default function PlannerRuntime() {
   async function createPlan() {
     setLoading(true);
     setError(null);
+    setJob(null);
+    setRevisionHistory([]);
+    setFeedback("");
 
     try {
       const payload = await requestJson("/api/questions", {
@@ -73,7 +79,6 @@ export default function PlannerRuntime() {
       if (payload.job) {
         setJob(payload.job);
       }
-      setFeedback("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unknown error");
     } finally {
@@ -141,6 +146,28 @@ export default function PlannerRuntime() {
 
     try {
       const payload = await requestJson(`/api/plans/${job.id}/approve`, {
+        method: "POST",
+      });
+      if (payload.job) {
+        setJob(payload.job);
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function rerunPlan() {
+    if (!job) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const payload = await requestJson(`/api/plans/${job.id}/rerun`, {
         method: "POST",
       });
       if (payload.job) {
@@ -308,6 +335,14 @@ export default function PlannerRuntime() {
                 </button>
               </div>
             </>
+          ) : null}
+
+          {canRerunPlan(job) ? (
+            <div className="actions">
+              <button type="button" onClick={rerunPlan} disabled={loading}>
+                {loading ? "Working..." : "Re-run Plan"}
+              </button>
+            </div>
           ) : null}
 
           {job.finalAnswer ? (

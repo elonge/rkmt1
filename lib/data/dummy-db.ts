@@ -1,5 +1,9 @@
-import { Collection, ObjectId } from "mongodb";
-import { normalizeStatsMetric, StatsQueryInput, statsQueryInputSchema } from "../types";
+import { Collection, Filter, ObjectId } from "mongodb";
+import {
+  parseDbStatsQueryInput,
+  StatsFilter,
+  StatsQueryInput,
+} from "../types";
 import { dummyDatasetSummary, getMongoCollectionNames, getMongoDb } from "./mongo";
 
 type TagField = {
@@ -203,39 +207,76 @@ async function getCutoffTimestamp(
   return maxTimestamp - lastDays * DAY_IN_MS;
 }
 
-async function politicalLeaningDistribution(lastDays = 30): Promise<{
+function buildGroupLeaningsFilter(filter?: StatsFilter): Filter<GroupDoc> {
+  if (!filter?.politicalLeaning) {
+    return {};
+  }
+
+  return {
+    "tags.politicalLeaning.tagValue": filter.politicalLeaning,
+  };
+}
+
+async function getMatchingGroups(filter?: StatsFilter): Promise<GroupDoc[]> {
+  const { groups } = await getCollections();
+  return groups
+    .find(buildGroupLeaningsFilter(filter), {
+      projection: {
+        _id: 1,
+        groupId: 1,
+        subject: 1,
+        memberCount: 1,
+        tags: 1,
+        lastActivityTimestamp: 1,
+      },
+    })
+    .toArray();
+}
+
+function describeStatsFilter(filter?: StatsFilter): string {
+  if (!filter?.politicalLeaning) {
+    return "";
+  }
+
+  return ` filtered to ${filter.politicalLeaning} leaning groups`;
+}
+
+async function politicalLeaningDistribution(
+  lastDays = 30,
+  filter?: StatsFilter,
+): Promise<{
   metric: string;
   coverage: string;
   counts: Record<string, number>;
 }> {
-  const { groups, users, messages } = await getCollections();
+  const { users, messages } = await getCollections();
   const cutoff = await getCutoffTimestamp(messages, lastDays);
-  const activeUserIds = (await messages.distinct("authorId", {
+  const matchingGroups = await getMatchingGroups(filter);
+  const matchingGroupIds = new Set(
+    matchingGroups.map((group) => normalizeWhitespace(group.groupId)).filter(Boolean),
+  );
+  const matchingGroupObjectIds = new Set(
+    matchingGroups.map((group) => String(group._id)).filter(Boolean),
+  );
+  if (filter?.politicalLeaning && matchingGroupIds.size === 0) {
+    return {
+      metric: "political_leaning_distribution",
+      coverage: `Active message authors in the last ${lastDays} days, joined with group political-leaning tags from Mongo${describeStatsFilter(filter)}.`,
+      counts: {},
+    };
+  }
+  const messageFilter: Filter<MessageDoc> = {
     timestamp: { $gte: cutoff },
-  })) as string[];
+    ...(matchingGroupIds.size > 0 ? { groupId: { $in: [...matchingGroupIds] } } : {}),
+  };
+  const activeUserIds = (await messages.distinct("authorId", messageFilter)) as string[];
   const uniqueActiveUserIds = [...new Set(activeUserIds.filter((value) => typeof value === "string" && value))];
 
   const userDocs = await users
     .find({ userId: { $in: uniqueActiveUserIds } }, { projection: { userId: 1, groups: 1 } })
     .toArray();
-
-  const groupIdStrings = new Set<string>();
-  for (const user of userDocs) {
-    for (const membership of user.groups ?? []) {
-      if (!membership.group || membership.status === "LEFT") {
-        continue;
-      }
-      groupIdStrings.add(String(membership.group));
-    }
-  }
-
-  const groupObjectIds = [...groupIdStrings].map((value) => new ObjectId(value));
-  const groupDocs =
-    groupObjectIds.length > 0
-      ? await groups.find({ _id: { $in: groupObjectIds } }, { projection: { tags: 1 } }).toArray()
-      : [];
   const leaningByGroupId = new Map(
-    groupDocs.map((group) => [
+    matchingGroups.map((group) => [
       String(group._id),
       lowerCase(group.tags?.politicalLeaning?.tagValue) || "unknown",
     ]),
@@ -247,7 +288,11 @@ async function politicalLeaningDistribution(lastDays = 30): Promise<{
     const user = userById.get(activeUserId);
     const leaning =
       user?.groups
-        ?.filter((membership) => membership.status !== "LEFT")
+        ?.filter(
+          (membership) =>
+            membership.status !== "LEFT" &&
+            (!filter?.politicalLeaning || matchingGroupObjectIds.has(String(membership.group))),
+        )
         .map((membership) => leaningByGroupId.get(String(membership.group)))
         .find((value) => Boolean(value)) ?? "unknown";
 
@@ -256,28 +301,42 @@ async function politicalLeaningDistribution(lastDays = 30): Promise<{
 
   return {
     metric: "political_leaning_distribution",
-    coverage: `Active message authors in the last ${lastDays} days, joined with group political-leaning tags from Mongo.`,
+    coverage: `Active message authors in the last ${lastDays} days, joined with group political-leaning tags from Mongo${describeStatsFilter(filter)}.`,
     counts,
   };
 }
 
-async function activeMessagesLastDays(lastDays = 7): Promise<{
+async function activeMessagesLastDays(lastDays = 7, filter?: StatsFilter): Promise<{
   metric: string;
   coverage: string;
   count: number;
 }> {
   const { messages } = await getCollections();
   const cutoff = await getCutoffTimestamp(messages, lastDays);
-  const count = await messages.countDocuments({ timestamp: { $gte: cutoff } });
+  const matchingGroups = await getMatchingGroups(filter);
+  const matchingGroupIds = matchingGroups
+    .map((group) => normalizeWhitespace(group.groupId))
+    .filter((value): value is string => Boolean(value));
+  if (filter?.politicalLeaning && matchingGroupIds.length === 0) {
+    return {
+      metric: "active_messages_last_days",
+      coverage: `Messages in the last ${lastDays} days from Mongo${describeStatsFilter(filter)}.`,
+      count: 0,
+    };
+  }
+  const count = await messages.countDocuments({
+    timestamp: { $gte: cutoff },
+    ...(matchingGroupIds.length > 0 ? { groupId: { $in: matchingGroupIds } } : {}),
+  });
 
   return {
     metric: "active_messages_last_days",
-    coverage: `Messages in the last ${lastDays} days from Mongo.`,
+    coverage: `Messages in the last ${lastDays} days from Mongo${describeStatsFilter(filter)}.`,
     count,
   };
 }
 
-async function topGroupsByMemberCount(limit = 5): Promise<{
+async function topGroupsByMemberCount(limit = 5, filter?: StatsFilter): Promise<{
   metric: string;
   coverage: string;
   groups: GroupSnapshot[];
@@ -285,7 +344,7 @@ async function topGroupsByMemberCount(limit = 5): Promise<{
   const { groups } = await getCollections();
   const top = (await groups
     .find(
-      {},
+      buildGroupLeaningsFilter(filter),
       {
         projection: {
           groupId: 1,
@@ -302,7 +361,7 @@ async function topGroupsByMemberCount(limit = 5): Promise<{
 
   return {
     metric: "top_groups_by_member_count",
-    coverage: `Top ${limit} groups by member count from Mongo.`,
+    coverage: `Top ${limit} groups by member count from Mongo${describeStatsFilter(filter)}.`,
     groups: top,
   };
 }
@@ -680,18 +739,15 @@ export async function searchMessagesByMockVector(
 }
 
 export async function runStatsQuery(rawInput: StatsQueryInput): Promise<Record<string, unknown>> {
-  const input = statsQueryInputSchema.parse({
-    ...rawInput,
-    metric: normalizeStatsMetric(rawInput.metric),
-  });
+  const input = parseDbStatsQueryInput(rawInput);
 
   switch (input.metric) {
     case "political_leaning_distribution":
-      return politicalLeaningDistribution(input.lastDays ?? 30);
+      return politicalLeaningDistribution(input.lastDays ?? 30, input.filter);
     case "active_messages_last_days":
-      return activeMessagesLastDays(input.lastDays ?? 7);
+      return activeMessagesLastDays(input.lastDays ?? 7, input.filter);
     case "top_groups_by_member_count":
-      return topGroupsByMemberCount(input.limit ?? 5);
+      return topGroupsByMemberCount(input.limit ?? 5, input.filter);
     default:
       return {
         metric: input.metric,

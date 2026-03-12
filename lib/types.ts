@@ -115,6 +115,17 @@ export const statsMetricSchema = z.enum([
 
 export type StatsMetric = z.infer<typeof statsMetricSchema>;
 
+export const politicalLeaningSchema = z.enum([
+  "left",
+  "center-left",
+  "center",
+  "center-right",
+  "right",
+  "mixed",
+]);
+
+export type PoliticalLeaning = z.infer<typeof politicalLeaningSchema>;
+
 const statsMetricAliasMap: Record<string, StatsMetric> = {
   top_groups: "top_groups_by_member_count",
   top_groups_by_member: "top_groups_by_member_count",
@@ -137,11 +148,107 @@ export function normalizeStatsMetric(metric: unknown): unknown {
   return statsMetricAliasMap[normalized] ?? metric;
 }
 
+const politicalLeaningAliasMap: Record<string, PoliticalLeaning> = {
+  left: "left",
+  "left-wing": "left",
+  "center-left": "center-left",
+  centerleft: "center-left",
+  center: "center",
+  centrist: "center",
+  "center-right": "center-right",
+  centerright: "center-right",
+  right: "right",
+  "right-wing": "right",
+  mixed: "mixed",
+};
+
+export function normalizePoliticalLeaning(leaning: unknown): unknown {
+  if (typeof leaning !== "string") {
+    return leaning;
+  }
+
+  const normalized = leaning.trim().toLowerCase();
+  return politicalLeaningAliasMap[normalized] ?? leaning;
+}
+
+export const statsFilterSchema = z
+  .object({
+    politicalLeaning: politicalLeaningSchema.optional(),
+  })
+  .strict();
+
+export type StatsFilter = z.infer<typeof statsFilterSchema>;
+
+export const dbStatsQueryToolFilterSchema = z
+  .object({
+    // OpenAI structured outputs require nested fields to be required, so nullable is the tool-facing adapter.
+    politicalLeaning: politicalLeaningSchema.nullable(),
+  })
+  .strict();
+
+export const dbStatsQueryToolInputSchema = z
+  .object({
+    metric: statsMetricSchema,
+    lastDays: z.number().int().min(1).max(365).nullable().optional(),
+    limit: z.number().int().min(1).max(50).nullable().optional(),
+    filter: dbStatsQueryToolFilterSchema.nullable().optional(),
+  })
+  .strict();
+
 export const statsQueryInputSchema = z.object({
   metric: statsMetricSchema,
   lastDays: z.number().int().min(1).max(365).optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  filter: statsFilterSchema.optional(),
 });
+
+export function normalizeDbStatsQueryInput(
+  rawInput: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalizedMetric = normalizeStatsMetric(rawInput.metric);
+  const rawFilter =
+    rawInput.filter && typeof rawInput.filter === "object" && !Array.isArray(rawInput.filter)
+      ? (rawInput.filter as Record<string, unknown>)
+      : null;
+  const normalizedPoliticalLeaning = normalizePoliticalLeaning(rawFilter?.politicalLeaning);
+
+  const normalized: Record<string, unknown> = {
+    ...rawInput,
+    metric: normalizedMetric,
+  };
+
+  if (rawInput.lastDays === null) {
+    delete normalized.lastDays;
+  }
+
+  if (rawInput.limit === null) {
+    delete normalized.limit;
+  }
+
+  if (normalizedPoliticalLeaning && typeof normalizedPoliticalLeaning === "string") {
+    normalized.filter = {
+      politicalLeaning: normalizedPoliticalLeaning,
+    };
+  } else {
+    delete normalized.filter;
+  }
+
+  return normalized;
+}
+
+export function parseDbStatsQueryInput(rawInput: unknown): StatsQueryInput {
+  const parsedToolInput = dbStatsQueryToolInputSchema.parse(rawInput);
+  const normalized = normalizeDbStatsQueryInput(parsedToolInput as Record<string, unknown>);
+  return statsQueryInputSchema.parse(normalized);
+}
+
+export function parsePartialDbStatsQueryInput(
+  rawInput: unknown,
+): Partial<StatsQueryInput> {
+  const parsedToolInput = dbStatsQueryToolInputSchema.partial().parse(rawInput);
+  const normalized = normalizeDbStatsQueryInput(parsedToolInput as Record<string, unknown>);
+  return statsQueryInputSchema.partial().parse(normalized);
+}
 
 export type PlanStepOwner = z.infer<typeof planStepOwnerSchema>;
 export type PlanStep = z.infer<typeof planStepSchema>;

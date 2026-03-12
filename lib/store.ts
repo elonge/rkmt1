@@ -10,7 +10,7 @@ import {
   clonePlanJob,
   ExecutionArtifact,
   FinalAnswer,
-  normalizeStatsMetric,
+  normalizeDbStatsQueryInput,
   PlanDraft,
   PlanJob,
   PlanJobStatus,
@@ -97,12 +97,7 @@ function normalizeStep(step: Record<string, unknown>): Record<string, unknown> {
       ? (step.args as Record<string, unknown>)
       : {};
   const normalizedArgs =
-    toolId === "db_stats_query"
-      ? {
-          ...rawArgs,
-          metric: normalizeStatsMetric(rawArgs.metric),
-        }
-      : rawArgs;
+    toolId === "db_stats_query" ? normalizeDbStatsQueryInput(rawArgs) : rawArgs;
 
   return {
     ...step,
@@ -157,6 +152,19 @@ function normalizeJob(job: PlanJob): PlanJob {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function resetExecutionState(current: PlanJob, status: PlanJobStatus): PlanJob {
+  current.plan.steps = current.plan.steps.map((step) => ({
+    ...step,
+    status: "pending",
+    outputSummary: undefined,
+  }));
+  current.artifacts = [];
+  current.finalAnswer = undefined;
+  current.error = undefined;
+  current.status = status;
+  return current;
 }
 
 async function ensureStoreExists(): Promise<void> {
@@ -287,17 +295,15 @@ export async function appendRevisionNote(id: string, note: string): Promise<Plan
 export async function replacePlan(id: string, plan: PlanDraft): Promise<PlanJob | null> {
   return updatePlanJob(id, (current) => {
     current.plan = plan;
-    current.plan.steps = current.plan.steps.map((step) => ({
-      ...step,
-      status: "pending",
-      outputSummary: undefined,
-    }));
-    current.artifacts = [];
-    current.finalAnswer = undefined;
-    current.error = undefined;
-    current.status = "awaiting_approval";
-    return current;
+    return resetExecutionState(current, "awaiting_approval");
   });
+}
+
+export async function resetPlanExecution(
+  id: string,
+  status: PlanJobStatus = "awaiting_approval",
+): Promise<PlanJob | null> {
+  return updatePlanJob(id, (current) => resetExecutionState(current, status));
 }
 
 export async function updateStepStatus(
