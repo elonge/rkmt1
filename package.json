@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "generate:schema-dummy-data": "node scripts/generate-schema-dummy-data.mjs",
-    "import:schema-dummy-data": "node scripts/import-schema-dummy-data.mjs"
+    "import:schema-dummy-data": "node scripts/import-schema-dummy-data.mjs",
+    "generate:group-messages": "node scripts/generate-group-messages-batch.mjs"
   },
   "dependencies": {
     "@openai/agents": "^0.0.10",

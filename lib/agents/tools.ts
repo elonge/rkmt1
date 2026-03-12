@@ -71,7 +71,8 @@ const vectorSearchArgsSchema = z
 const summarizationArgsSchema = z
   .object({
     text: z.string(),
-    maxBullets: z.number().int().min(1),
+    maxBullets: z.number().int().min(1).max(10),
+    focus: z.string().optional(),
   })
   .strict();
 
@@ -254,7 +255,7 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     toolId: "summarization",
     owner: "synthesizer",
     label: "Summarization",
-    description: "Summarize supplied text into short bullets.",
+    description: "Summarize supplied text into a short answer and concise bullets.",
     argsSchema: summarizationArgsSchema,
     plannerVisible: true,
     specialistVisible: true,

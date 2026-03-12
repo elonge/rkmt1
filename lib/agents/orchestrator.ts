@@ -43,6 +43,12 @@ const llmFinalAnswerSchema = z.object({
   recommendedNextQuestions: z.array(z.string()),
 });
 
+const summarizationOutputSchema = z.object({
+  source: z.literal("llm-summarizer"),
+  answer: z.string(),
+  bullets: z.array(z.string()).min(1).max(10),
+});
+
 
 export class PlannerUnavailableError extends Error {
   constructor(message: string) {
@@ -205,15 +211,6 @@ const stepRepairSchemaByToolId = Object.fromEntries(
 type LlmPlanStep = z.infer<typeof llmPlanStepSchema>;
 type LlmPlanDraft = z.infer<typeof llmPlanDraftSchema>;
 
-function buildSummaryBullets(text: string, maxBullets: number) {
-  const compact = text.replace(/\s+/g, " ").trim();
-  const snippet = compact.slice(0, 320);
-  const bulletCount = Math.max(1, Math.min(maxBullets, 10));
-  return Array.from({ length: bulletCount }, (_, idx) =>
-    idx === 0 ? snippet : `Dummy bullet ${idx + 1}`,
-  );
-}
-
 function buildNarrativeProbe(question: string) {
   return {
     source: "dummy-narrative-tool",
@@ -234,8 +231,18 @@ function requireToolDefinition(toolId: string) {
   return toolDefinition;
 }
 
+function transformStructuredToolParametersSchema(
+  schema: z.ZodObject<any>,
+): z.ZodObject<any> {
+  const transformed = transformPlannerArgsSchema(schema);
+  if (!(transformed instanceof z.ZodObject)) {
+    throw new Error("Tool parameter schema must resolve to a ZodObject.");
+  }
+  return transformed.strip();
+}
+
 function specialistToolParameters(toolId: string) {
-  return requireToolDefinition(toolId).argsSchema.strip();
+  return transformStructuredToolParametersSchema(requireToolDefinition(toolId).argsSchema);
 }
 
 const vectorSearchToolDefinition = requireToolDefinition("vector_search");
@@ -263,10 +270,11 @@ const summarizationTool = tool({
   description: summarizationToolDefinition.description,
   parameters: specialistToolParameters(summarizationToolDefinition.toolId),
   async execute(input) {
-    return {
-      source: "dummy-summarizer",
-      bullets: buildSummaryBullets(input.text, input.maxBullets),
-    };
+    return runSummarization({
+      text: input.text,
+      maxBullets: input.maxBullets,
+      focus: typeof input.focus === "string" ? input.focus : undefined,
+    });
   },
 });
 
@@ -434,6 +442,20 @@ const synthesisAgent = new Agent({
   instructions:
     "Synthesize specialist outputs into strict JSON for UI. Mention uncertainty/caveats where relevant.",
   outputType: llmFinalAnswerSchema,
+});
+
+const summarizerAgent = new Agent({
+  name: "Summarizer",
+  model: MODEL_NAME,
+  instructions: [
+    "Summarize the supplied text into strict JSON.",
+    "Return fields: source, answer, bullets.",
+    "Set source to `llm-summarizer`.",
+    "Keep answer to 1-3 concise sentences grounded only in the supplied text.",
+    "Return factual bullets only, with no more than the requested maxBullets.",
+    "Do not add keys outside the required schema.",
+  ].join(" "),
+  outputType: summarizationOutputSchema,
 });
 
 function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
@@ -1328,6 +1350,40 @@ function summarizeStepData(data: Record<string, unknown>): string {
   return `Returned fields: ${keys.slice(0, 5).join(", ")}${keys.length > 5 ? ", ..." : ""}`;
 }
 
+type SummarizationInput = {
+  text: string;
+  maxBullets: number;
+  focus?: string;
+};
+
+async function runSummarization(input: SummarizationInput) {
+  if (!OPENAI_ENABLED) {
+    throw new PlanExecutionError("Cannot execute summarization without OPENAI_API_KEY.");
+  }
+
+  const prompt = [
+    "Summarize the supplied text into strict JSON.",
+    `Requested max bullets: ${input.maxBullets}`,
+    input.focus ? `Focus: ${input.focus}` : "Focus: none",
+    "",
+    `Text:\n${input.text}`,
+  ].join("\n");
+
+  try {
+    return await runStructuredAgentWithRetry(summarizerAgent, prompt, (output) =>
+      summarizationOutputSchema.parse(output),
+    );
+  } catch (error) {
+    const message =
+      error instanceof z.ZodError
+        ? formatZodIssues(error)
+        : error instanceof Error
+          ? error.message
+          : "Unknown summarization error";
+    throw new PlanExecutionError(`Summarization failed: ${message}`);
+  }
+}
+
 function buildSpecialistPrompt(
   question: string,
   step: PlanStep,
@@ -1435,13 +1491,11 @@ async function executeToolById(
     }
 
     case "summarization": {
-      const data = {
-        source: "dummy-summarizer",
-        bullets: buildSummaryBullets(
-          resolvedArgs.text as string,
-          resolvedArgs.maxBullets as number,
-        ),
-      };
+      const data = await runSummarization({
+        text: resolvedArgs.text as string,
+        maxBullets: resolvedArgs.maxBullets as number,
+        focus: typeof resolvedArgs.focus === "string" ? resolvedArgs.focus : undefined,
+      });
       return { data, summary: summarizeStepData(data) };
     }
 
