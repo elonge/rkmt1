@@ -1,8 +1,6 @@
 import { Collection, Filter, ObjectId } from "mongodb";
 import {
-  parseDbStatsQueryInput,
   StatsFilter,
-  StatsQueryInput,
 } from "../types";
 import { dummyDatasetSummary, getMongoCollectionNames, getMongoDb } from "./mongo";
 
@@ -668,92 +666,6 @@ export async function lookupInfluencers(
       groupCount: item.groupCount,
     })),
   };
-}
-
-export async function searchMessagesByMockVector(
-  query: string,
-  topK: number,
-): Promise<Record<string, unknown>> {
-  const { messages } = await getCollections();
-  const boundedTopK = Math.min(Math.max(Math.trunc(topK), 1), 25);
-  const queryTokens = tokenize(query);
-  const normalizedQuery = lowerCase(query);
-  const candidates = await messages
-    .find(
-      { body: { $type: "string" } },
-      {
-        projection: {
-          body: 1,
-          messageId: 1,
-          groupId: 1,
-          authorId: 1,
-          timestamp: 1,
-        },
-      },
-    )
-    .sort({ timestamp: -1 })
-    .limit(500)
-    .toArray();
-
-  const snippets = candidates
-    .map((message) => {
-      const text = normalizeWhitespace(message.body);
-      const textLower = lowerCase(text);
-      const textTokens = new Set(tokenize(text));
-      const overlap = queryTokens.reduce(
-        (count, token) => count + (textTokens.has(token) ? 1 : 0),
-        0,
-      );
-      const phraseBonus = normalizedQuery && textLower.includes(normalizedQuery) ? 0.35 : 0;
-      const coverage = queryTokens.length > 0 ? overlap / queryTokens.length : 0;
-      const jitter = (stableHash(`${message.messageId ?? text}:${normalizedQuery}`) % 100) / 1000;
-      const score = Number(Math.min(0.99, coverage * 0.7 + phraseBonus + jitter).toFixed(2));
-
-      return {
-        id: normalizeWhitespace(message.messageId) || String(message._id ?? ""),
-        score,
-        overlap,
-        timestamp: typeof message.timestamp === "number" ? message.timestamp : 0,
-        text: text.slice(0, 320),
-        groupId: message.groupId,
-        authorId: message.authorId,
-      };
-    })
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      if (right.overlap !== left.overlap) {
-        return right.overlap - left.overlap;
-      }
-      return right.timestamp - left.timestamp;
-    })
-    .slice(0, boundedTopK)
-    .map(({ overlap: _overlap, ...snippet }) => snippet);
-
-  return {
-    source: "mongo-message-search-mock-vector",
-    query,
-    snippets,
-  };
-}
-
-export async function runStatsQuery(rawInput: StatsQueryInput): Promise<Record<string, unknown>> {
-  const input = parseDbStatsQueryInput(rawInput);
-
-  switch (input.metric) {
-    case "political_leaning_distribution":
-      return politicalLeaningDistribution(input.lastDays ?? 30, input.filter);
-    case "active_messages_last_days":
-      return activeMessagesLastDays(input.lastDays ?? 7, input.filter);
-    case "top_groups_by_member_count":
-      return topGroupsByMemberCount(input.limit ?? 5, input.filter);
-    default:
-      return {
-        metric: input.metric,
-        coverage: "No implementation available",
-      };
-  }
 }
 
 export { dummyDatasetSummary };

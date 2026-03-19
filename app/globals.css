@@ -214,6 +214,40 @@ button:disabled {
   margin-bottom: 8px;
 }
 
+.agent-tool-calls {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-tool-call {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fcfbf7;
+}
+
+.tool-debug-logs {
+  display: grid;
+  gap: 8px;
+}
+
+.tool-debug-log {
+  border-left: 3px solid #c9b383;
+  padding-left: 10px;
+}
+
+.tool-debug-log p {
+  margin: 0 0 6px;
+}
+
+.trace-label {
+  margin: 10px 0 6px;
+  color: var(--subtle);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .subtle {
   color: var(--subtle);
 }

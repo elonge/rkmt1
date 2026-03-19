@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { readFile, rename, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Collection } from "mongodb";
 import { getToolDefinition } from "./agents/tools";
 import { getMongoDb } from "./data/mongo";
+import { resolveRuntimeDir } from "./runtime/runtime-paths.ts";
 import {
+  AgentToolCall,
   clonePlanJob,
   ExecutionArtifact,
   FinalAnswer,
@@ -16,19 +17,7 @@ import {
   PlanJobStatus,
 } from "./types";
 
-function resolveStoreDir(): string {
-  if (process.env.PLAN_STORE_DIR) {
-    return process.env.PLAN_STORE_DIR;
-  }
-
-  if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.AWS_EXECUTION_ENV) {
-    return join(tmpdir(), "rkmt-runtime");
-  }
-
-  return join(process.cwd(), ".runtime");
-}
-
-const STORE_DIR = resolveStoreDir();
+const STORE_DIR = resolveRuntimeDir();
 const STORE_FILE = join(STORE_DIR, "plan-jobs.json");
 
 type PlanJobsById = Record<string, PlanJob>;
@@ -115,6 +104,18 @@ function normalizeStep(step: Record<string, unknown>): Record<string, unknown> {
       step.inputBindings && typeof step.inputBindings === "object" && !Array.isArray(step.inputBindings)
         ? step.inputBindings
         : {},
+    agentToolCalls: Array.isArray(step.agentToolCalls)
+      ? step.agentToolCalls.map((agentToolCall) =>
+          normalizeAgentToolCall(agentToolCall as Record<string, unknown>),
+        )
+      : [],
+  };
+}
+
+function normalizeAgentToolCall(agentToolCall: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...agentToolCall,
+    debugLogs: Array.isArray(agentToolCall.debugLogs) ? agentToolCall.debugLogs : [],
   };
 }
 
@@ -134,6 +135,11 @@ function normalizeArtifact(artifact: Record<string, unknown>): Record<string, un
       typeof artifact.tool === "string" && artifact.tool.length > 0
         ? artifact.tool
         : toolDefinition?.label ?? toolId,
+    agentToolCalls: Array.isArray(artifact.agentToolCalls)
+      ? artifact.agentToolCalls.map((agentToolCall) =>
+          normalizeAgentToolCall(agentToolCall as Record<string, unknown>),
+        )
+      : [],
   };
 }
 
@@ -159,6 +165,7 @@ function resetExecutionState(current: PlanJob, status: PlanJobStatus): PlanJob {
     ...step,
     status: "pending",
     outputSummary: undefined,
+    agentToolCalls: [],
   }));
   current.artifacts = [];
   current.finalAnswer = undefined;
@@ -322,6 +329,27 @@ export async function updateStepStatus(
         ...step,
         status,
         outputSummary,
+      };
+    });
+
+    return current;
+  });
+}
+
+export async function updateStepAgentToolCalls(
+  id: string,
+  stepId: string,
+  agentToolCalls: AgentToolCall[],
+): Promise<PlanJob | null> {
+  return updatePlanJob(id, (current) => {
+    current.plan.steps = current.plan.steps.map((step) => {
+      if (step.id !== stepId) {
+        return step;
+      }
+
+      return {
+        ...step,
+        agentToolCalls,
       };
     });
 

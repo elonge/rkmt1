@@ -4,8 +4,10 @@ import {
   getPlanJob,
   setFinalAnswer,
   setPlanStatus,
+  updateStepAgentToolCalls,
   updateStepStatus,
 } from "../store";
+import { writeAgentToolTraceFile } from "./agent-trace-file";
 
 const activeRuns = new Set<string>();
 
@@ -25,6 +27,16 @@ export async function runPlanInBackground(jobId: string): Promise<void> {
     const result = await executePlan(job.question, job.plan, {
       async onStepStart(step) {
         await updateStepStatus(jobId, step.id, "running");
+      },
+      async onAgentToolCalls(step, agentToolCalls) {
+        await updateStepAgentToolCalls(jobId, step.id, agentToolCalls);
+        await writeAgentToolTraceFile({
+          jobId,
+          stepId: step.id,
+          stepTitle: step.title,
+          stepToolId: step.toolId,
+          agentToolCalls,
+        });
       },
       async onStepComplete(step, artifact, summary) {
         await appendArtifact(jobId, artifact);

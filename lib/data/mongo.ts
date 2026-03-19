@@ -1,4 +1,5 @@
-import { Db, MongoClient } from "mongodb";
+import { MongoClient } from "mongodb";
+import type { Db } from "mongodb";
 
 type MongoConfig = {
   uri: string;
@@ -6,9 +7,13 @@ type MongoConfig = {
   groupsCollection: string;
   usersCollection: string;
   messagesCollection: string;
+  groupSemanticCollection: string;
+  messageSemanticCollection: string;
 };
 
 declare global {
+  // eslint-disable-next-line no-var
+  var __rkmtMongoClient: MongoClient | undefined;
   // eslint-disable-next-line no-var
   var __rkmtMongoClientPromise: Promise<MongoClient> | undefined;
 }
@@ -47,6 +52,10 @@ function readMongoConfig(): MongoConfig {
     groupsCollection: process.env.MONGO_GROUPS_COLLECTION?.trim() || "groups",
     usersCollection: process.env.MONGO_USERS_COLLECTION?.trim() || "userprofiles",
     messagesCollection: process.env.MONGO_MESSAGES_COLLECTION?.trim() || "messages",
+    groupSemanticCollection:
+      process.env.MONGO_GROUP_SEMANTIC_COLLECTION?.trim() || "group_semantic",
+    messageSemanticCollection:
+      process.env.MONGO_MESSAGE_SEMANTIC_COLLECTION?.trim() || "message_semantic",
   };
 }
 
@@ -56,13 +65,15 @@ export function getMongoCollectionNames() {
     groupsCollection: config.groupsCollection,
     usersCollection: config.usersCollection,
     messagesCollection: config.messagesCollection,
+    groupSemanticCollection: config.groupSemanticCollection,
+    messageSemanticCollection: config.messageSemanticCollection,
   };
 }
 
 export function dummyDatasetSummary(): string {
   try {
     const config = readMongoConfig();
-    return `Mongo DB "${config.dbName}" configured for collections ${config.groupsCollection}, ${config.usersCollection}, and ${config.messagesCollection}.`;
+    return `Mongo DB "${config.dbName}" configured for collections ${config.groupsCollection}, ${config.usersCollection}, ${config.messagesCollection}, ${config.groupSemanticCollection}, and ${config.messageSemanticCollection}.`;
   } catch (error) {
     return error instanceof Error
       ? `${error.message} Mongo-backed tools will fail until env is configured.`
@@ -70,12 +81,29 @@ export function dummyDatasetSummary(): string {
   }
 }
 
+export async function closeMongoClient(): Promise<void> {
+  const client = globalThis.__rkmtMongoClient;
+  globalThis.__rkmtMongoClient = undefined;
+  globalThis.__rkmtMongoClientPromise = undefined;
+
+  if (!client) {
+    return;
+  }
+
+  await client.close();
+}
+
 export async function getMongoDb(): Promise<Db> {
   const { uri, dbName } = readMongoConfig();
 
   if (!globalThis.__rkmtMongoClientPromise) {
     const client = new MongoClient(uri);
-    globalThis.__rkmtMongoClientPromise = client.connect();
+    globalThis.__rkmtMongoClient = client;
+    globalThis.__rkmtMongoClientPromise = client.connect().catch((error) => {
+      globalThis.__rkmtMongoClient = undefined;
+      globalThis.__rkmtMongoClientPromise = undefined;
+      throw error;
+    });
   }
 
   const connectedClient = await globalThis.__rkmtMongoClientPromise;

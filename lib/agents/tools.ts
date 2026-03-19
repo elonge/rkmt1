@@ -2,14 +2,31 @@ import { z } from "zod";
 import {
   dbStatsQueryToolInputSchema,
   PlanStepOwner,
-  statsMetricSchema,
 } from "../types";
+import {
+  audienceAgentOutputSchema,
+  audienceLookupOutputSchema,
+  dbStatsQueryOutputSchema,
+  dynamicMongoAggregationOutputSchema,
+  groupSearchOutputSchema,
+  influencerLookupOutputSchema,
+  latestNarrativesOutputSchema,
+  messageSearchOutputSchema,
+  narrativeAgentOutputSchema,
+  narrativeProbeOutputSchema,
+  planningNotesOutputSchema,
+  statsAgentOutputSchema,
+  summarizationOutputSchema,
+  synthesisAgentOutputSchema,
+  userProfileLookupOutputSchema,
+} from "./tool-output-schemas";
 
 export const executableToolIdValues = [
-  "db_stats_query",
   "find_narratives_in_timeframe",
-  "vector_search",
   "summarization",
+  "user_profile_lookup",
+  "message_search",
+  "group_search",
   "audience_lookup",
   "influencer_lookup",
   "narrative_probe",
@@ -18,6 +35,8 @@ export const executableToolIdValues = [
 ] as const;
 
 export const internalOnlyToolIdValues = [
+  "db_stats_query",
+  "dynamic_mongo_aggregation",
   "planning_notes",
   "stats_query_agent",
   "synthesis_agent",
@@ -40,6 +59,7 @@ export type ToolDefinition = {
   label: string;
   description: string;
   argsSchema: z.ZodObject<any>;
+  outputSchema: z.ZodTypeAny;
   plannerVisible: boolean;
   specialistVisible: boolean;
   kind: "leaf" | "agent";
@@ -61,13 +81,6 @@ const narrativesArgsSchema = z
   })
   .strict();
 
-const vectorSearchArgsSchema = z
-  .object({
-    query: z.string(),
-    topK: z.number().int().min(1),
-  })
-  .strict();
-
 const summarizationArgsSchema = z
   .object({
     text: z.string(),
@@ -82,8 +95,49 @@ const audienceLookupArgsSchema = z
   })
   .strict();
 
+const dynamicMongoAggregationArgsSchema = z
+  .object({
+    question: z.string(),
+  })
+  .strict();
+
+const userProfileLookupArgsSchema = z
+  .object({
+    query: z.string().nullable().optional(),
+    userIds: z.array(z.string()).nullable().optional(),
+    groupIds: z.array(z.string()).nullable().optional(),
+    membershipStatus: z.enum(["JOINED", "LEFT"]).nullable().optional(),
+    roles: z.array(z.string()).nullable().optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+const messageSearchArgsSchema = z
+  .object({
+    searchMode: z.enum(["regex", "vector"]),
+    query: z.string(),
+    lastDays: z.number().int().min(1).max(365).nullable().optional(),
+    groupIds: z.array(z.string()).nullable().optional(),
+    authorIds: z.array(z.string()).nullable().optional(),
+    minReplies: z.number().int().min(0).nullable().optional(),
+    minReactions: z.number().int().min(0).nullable().optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+const groupSearchArgsSchema = z
+  .object({
+    searchMode: z.enum(["regex", "vector"]),
+    query: z.string(),
+    lastDays: z.number().int().min(1).max(365).nullable().optional(),
+    minActivity: z.number().int().min(0).nullable().optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
 const influencerLookupArgsSchema = z
   .object({
+    question: z.string().optional(),
     narrative: z.string().nullable(),
   })
   .strict();
@@ -164,6 +218,8 @@ function describeScalarSchema(schema: z.ZodTypeAny): string {
 
   if (unwrapped instanceof z.ZodEnum) {
     description = `enum(${unwrapped.options.join(" | ")})`;
+  } else if (unwrapped instanceof z.ZodLiteral) {
+    description = `literal(${JSON.stringify(unwrapped._def.value)})`;
   } else if (unwrapped instanceof z.ZodString) {
     description = "string";
   } else if (unwrapped instanceof z.ZodNumber) {
@@ -185,8 +241,12 @@ function describeScalarSchema(schema: z.ZodTypeAny): string {
     description = `array<${describeScalarSchema(unwrapped.element)}>`;
   } else if (unwrapped instanceof z.ZodObject) {
     description = `object{${describeArgsSchema(unwrapped)}}`;
+  } else if (unwrapped instanceof z.ZodRecord) {
+    description = `record<${describeScalarSchema(unwrapped.valueSchema)}>`;
   } else if (unwrapped instanceof z.ZodBoolean) {
     description = "boolean";
+  } else if (unwrapped instanceof z.ZodAny) {
+    description = "any";
   }
 
   if (nullable) {
@@ -215,6 +275,7 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     label: "Planning Notes",
     description: "Record a planning note or schema checkpoint without querying external data.",
     argsSchema: planningNotesArgsSchema,
+    outputSchema: planningNotesOutputSchema,
     plannerVisible: false,
     specialistVisible: false,
     kind: "leaf",
@@ -224,9 +285,22 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     owner: "stats_query",
     label: "DB Stats Query",
     description:
-      "Run a Mongo-backed stats query for aggregate metrics such as leaning distribution, recent message volume, and top groups, with optional structured filters like political leaning.",
+      "Internal Mongo-backed analytics tool for specialist agents. Run structured aggregate queries over messages, groups, users, and memberships using entity, aggregation, measure, groupBy, and timeBucket, plus exactly one matching entity-specific filter object. Do not pass raw Mongo filters or collection names.",
     argsSchema: dbStatsQueryArgsSchema,
-    plannerVisible: true,
+    outputSchema: dbStatsQueryOutputSchema,
+    plannerVisible: false,
+    specialistVisible: true,
+    kind: "leaf",
+  },
+  dynamic_mongo_aggregation: {
+    toolId: "dynamic_mongo_aggregation",
+    owner: "audience_builder",
+    label: "Dynamic Mongo Aggregation",
+    description:
+      "Internal analytics tool that converts a natural-language question into a guarded Mongo aggregation pipeline over groups, messages, and userprofiles, then executes it read-only with execution safeguards.",
+    argsSchema: dynamicMongoAggregationArgsSchema,
+    outputSchema: dynamicMongoAggregationOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -237,17 +311,8 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     description:
       "Return simple narrative clusters from Mongo messages in a time window using lightweight heuristics.",
     argsSchema: narrativesArgsSchema,
-    plannerVisible: true,
-    specialistVisible: true,
-    kind: "leaf",
-  },
-  vector_search: {
-    toolId: "vector_search",
-    owner: "narrative_explorer",
-    label: "Mock Vector Search",
-    description: "Run mock semantic search over real Mongo messages and return the top matching snippets.",
-    argsSchema: vectorSearchArgsSchema,
-    plannerVisible: true,
+    outputSchema: latestNarrativesOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -257,7 +322,44 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     label: "Summarization",
     description: "Summarize supplied text into a short answer and concise bullets.",
     argsSchema: summarizationArgsSchema,
+    outputSchema: summarizationOutputSchema,
     plannerVisible: true,
+    specialistVisible: true,
+    kind: "leaf",
+  },
+  user_profile_lookup: {
+    toolId: "user_profile_lookup",
+    owner: "audience_builder",
+    label: "User Profile Lookup",
+    description:
+      "Use this tool to fetch concrete, actionable user profiles when you already have specific userIds or groupIds, or when you need to filter users by basic membership status or roles. It returns a strict list of user objects. Do not use this for counting or distributions.",
+    argsSchema: userProfileLookupArgsSchema,
+    outputSchema: userProfileLookupOutputSchema,
+    plannerVisible: false,
+    specialistVisible: true,
+    kind: "leaf",
+  },
+  message_search: {
+    toolId: "message_search",
+    owner: "audience_builder",
+    label: "Message Search",
+    description:
+      "Use this tool to discover users based on their behavior or content. Use it when the request asks for users who talk about specific topics (via regex or vector search) or users who meet engagement thresholds (e.g., minReplies, lastDays). It returns a list of active message authors and message snippets.",
+    argsSchema: messageSearchArgsSchema,
+    outputSchema: messageSearchOutputSchema,
+    plannerVisible: false,
+    specialistVisible: true,
+    kind: "leaf",
+  },
+  group_search: {
+    toolId: "group_search",
+    owner: "audience_builder",
+    label: "Group Search",
+    description:
+      "Use this tool to discover groups based on their subject, description, and tags. Use regex pattern matching for text-based searches or Atlas vector search for embedding-based searches. Optionally filter by recent activity.",
+    argsSchema: groupSearchArgsSchema,
+    outputSchema: groupSearchOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -266,9 +368,10 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     owner: "audience_builder",
     label: "Audience Lookup",
     description:
-      "Build simple audience segments from Mongo groups, tags, and recent activity for a question.",
+      "Use semantic group and message retrieval plus LLM synthesis to build audience segments for a question.",
     argsSchema: audienceLookupArgsSchema,
-    plannerVisible: true,
+    outputSchema: audienceLookupOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -277,9 +380,10 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     owner: "audience_builder",
     label: "Influencer Lookup",
     description:
-      "Rank likely influencers from Mongo message activity, reactions, replies, and group spread.",
+      "Rank likely influencers inside a semantically matched message slice using vector retrieval, engagement signals, and LLM synthesis.",
     argsSchema: influencerLookupArgsSchema,
-    plannerVisible: true,
+    outputSchema: influencerLookupOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -290,7 +394,8 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     description:
       "Return a lightweight narrative and sentiment interpretation for a question.",
     argsSchema: narrativeProbeArgsSchema,
-    plannerVisible: true,
+    outputSchema: narrativeProbeOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "leaf",
   },
@@ -299,8 +404,9 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     owner: "audience_builder",
     label: "Audience Builder Agent",
     description:
-      "Find exact audience segments based on the question, focus, and narrative using a specialist agent that can orchestrate audience lookup, influencer lookup, and supporting stats internally.",
+      "Use this agent to identify, filter, or group specific users based on profile fields, group participation, message search, group search, engagement filters, vector embeddings, and internal aggregate stats. It should be the primary tool for requests requiring a list of users, audience segments, or candidate amplifiers.",
     argsSchema: audienceBuilderAgentArgsSchema,
+    outputSchema: audienceAgentOutputSchema,
     plannerVisible: true,
     specialistVisible: true,
     kind: "agent",
@@ -312,7 +418,8 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     description:
       "Specialist agent that can orchestrate narrative timeframe lookup, mock vector search, narrative probe, and summarization internally.",
     argsSchema: narrativeExplorerAgentArgsSchema,
-    plannerVisible: true,
+    outputSchema: narrativeAgentOutputSchema,
+    plannerVisible: false,
     specialistVisible: true,
     kind: "agent",
   },
@@ -322,6 +429,7 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     label: "Synthesis Agent",
     description: "Combine prior step outputs into the final strict JSON answer for the UI.",
     argsSchema: synthesisAgentArgsSchema,
+    outputSchema: synthesisAgentOutputSchema,
     plannerVisible: false,
     specialistVisible: false,
     kind: "agent",
@@ -332,15 +440,26 @@ export const toolCatalog: Record<ToolId, ToolDefinition> = {
     label: "Stats Query Agent",
     description: "Specialist agent for counts, distributions, and aggregate metrics.",
     argsSchema: statsQueryAgentArgsSchema,
+    outputSchema: statsAgentOutputSchema,
     plannerVisible: false,
     specialistVisible: true,
     kind: "agent",
   },
 };
 
+export const plannerExecutableToolIdValues = executableToolIdValues.filter(
+  (toolId): toolId is ExecutableToolId => toolCatalog[toolId].plannerVisible,
+);
+
+export const plannerExecutableToolIdSchema = z.enum(
+  plannerExecutableToolIdValues as [ExecutableToolId, ...ExecutableToolId[]],
+);
+
+export type PlannerExecutableToolId = z.infer<typeof plannerExecutableToolIdSchema>;
+
 export const executableToolRegistry = Object.fromEntries(
-  executableToolIdValues.map((toolId) => [toolId, toolCatalog[toolId]]),
-) as Record<ExecutableToolId, ToolDefinition>;
+  plannerExecutableToolIdValues.map((toolId) => [toolId, toolCatalog[toolId]]),
+) as Record<PlannerExecutableToolId, ToolDefinition>;
 
 export function getToolDefinition(toolId: ToolId): ToolDefinition;
 export function getToolDefinition(toolId: string): ToolDefinition | null;
@@ -354,10 +473,10 @@ export function getExecutableToolDefinition(toolId: string): ToolDefinition | nu
 }
 
 export function describeExecutableTools(): string {
-  return executableToolIdValues
+  return plannerExecutableToolIdValues
     .map((toolId) => {
       const tool = toolCatalog[toolId];
-      return `- ${tool.toolId} (owner: ${tool.owner}) — ${tool.description} Args: ${describeArgsSchema(tool.argsSchema)}`;
+      return `- ${tool.toolId} (owner: ${tool.owner}) — ${tool.description} Args: ${describeArgsSchema(tool.argsSchema)} Output: ${describeScalarSchema(tool.outputSchema)}`;
     })
     .join("\n");
 }

@@ -3351,7 +3351,7 @@
           "tool": "DB Stats Query",
           "toolId": "db_stats_query",
           "args": {
-            "metric": "recent_message_volume",
+            "metric": "active_messages_last_days",
             "lastDays": 30,
             "limit": 20
           },
@@ -3542,7 +3542,7 @@
           "tool": "DB Stats Query",
           "toolId": "db_stats_query",
           "args": {
-            "metric": "recent_message_volume",
+            "metric": "active_messages_last_days",
             "lastDays": 30,
             "limit": 10
           },
@@ -3875,5 +3875,687 @@
       "assume all users are Israelis abroad"
     ],
     "artifacts": []
+  },
+  "c1185338-00a5-42a8-8b9b-cdfb95fbe9a7": {
+    "id": "c1185338-00a5-42a8-8b9b-cdfb95fbe9a7",
+    "question": "Who are the key influencers spreading narrative about the war with Iran",
+    "status": "failed",
+    "createdAt": "2026-03-08T10:38:18.053Z",
+    "updatedAt": "2026-03-08T10:38:56.974Z",
+    "plan": {
+      "objective": "Identify and rank key influencers who are spreading narratives about a war with Iran, and summarize the main narrative clusters they are associated with.",
+      "assumptions": [
+        "We interpret the question as online discussion narratives about a potential/ongoing war with Iran within recent messages.",
+        "Influencers are identifiable via message activity, spread across groups, replies, and reactions in the underlying Mongo dataset.",
+        "We should first discover the dominant narratives in a recent timeframe, then rank influencers per narrative, then synthesize results."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover recent narrative clusters about war with Iran",
+          "rationale": "Identify the main narrative frames being discussed so influencer ranking can be done per narrative rather than on a vague topic.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "Who are the key influencers spreading narrative about the war with Iran",
+            "focus": "narrative discovery for war with Iran",
+            "timeframeDays": 30,
+            "limit": 8,
+            "query": "war with Iran conflict strike Israel US Iran escalation"
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights"
+        },
+        {
+          "id": "step-2",
+          "title": "Rank influencers for the top narrative cluster",
+          "rationale": "Get a ranked list of the most impactful accounts spreading the most prominent narrative cluster.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-1.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, influencers"
+        },
+        {
+          "id": "step-3",
+          "title": "Get supporting stats on top groups discussing Iran war content",
+          "rationale": "Provide context on where the narrative is spreading (top groups/channels) to interpret influencer reach and cross-group propagation.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "top_groups_by_member_count",
+            "lastDays": 30,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "failed",
+          "outputSummary": "[\n  {\n    \"received\": \"top_groups\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"political_leaning_distribution\",\n      \"active_messages_last_days\",\n      \"top_groups_by_member_count\"\n    ],\n    \"path\": [\n      \"metric\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'political_leaning_distribution' | 'active_messages_last_days' | 'top_groups_by_member_count', received 'top_groups'\"\n  }\n]"
+        },
+        {
+          "id": "step-4",
+          "title": "Summarize key narrative themes and top influencers",
+          "rationale": "Convert the discovered narrative cluster(s), influencer ranking, and spread context into concise bullets for the final UI response.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "Key narratives about war with Iran",
+              "Key influencers spreading these narratives (ranked)",
+              "Where the narrative is spreading (top groups)",
+              "Notes/limitations"
+            ],
+            "emphasis": "Rank influencers clearly; tie each influencer to the narrative frame; keep output concise and actionable."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3"
+          ],
+          "inputBindings": {},
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Key narratives about war with Iran",
+          "Key influencers spreading these narratives (ranked)",
+          "Where the narrative is spreading (top groups)",
+          "Notes/limitations"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step-1",
+        "owner": "narrative_explorer",
+        "tool": "Narrative Explorer Agent",
+        "toolId": "narrative_explorer_agent",
+        "data": {
+          "narrativeSummary": "In the last 30 days, the available message corpus does not surface a distinct, high-signal “war with Iran” narrative cluster. The automated clustering is dominated by domestic civic topics (education reform, municipal budgets, cost of living, etc.). A generic “Security updates” bucket exists, but retrieval doesn’t return Iran/war/escalation-specific content, which prevents credible influencer identification for that specific narrative at this stage.",
+          "topNarratives": [
+            "Education reform (vol 26) — dominant civic framing; no Iran/war linkage detected in retrieved hits.",
+            "Municipal budgets (vol 25) — fiscal governance discussion; not war-related in retrieved snippets.",
+            "Cost of living (vol 21) — negative economic pressure framing; not war-related in retrieved snippets.",
+            "Small business support (vol 20) — economic resilience framing; not war-related in retrieved snippets.",
+            "Healthcare access (vol 17) — service access framing; not war-related in retrieved snippets.",
+            "Community volunteering (vol 16) — mobilization/coordination framing; not war-related in retrieved snippets.",
+            "Security updates (vol 15) — only plausible bridge to conflict framing, but retrieved examples are generic coordination, not Iran-specific.",
+            "Housing policy (vol 15) — domestic policy framing; not war-related in retrieved snippets."
+          ],
+          "sentimentHighlights": [
+            "Where “security” is invoked, sentiment is mixed/polarized in the probe (often urgency + uncertainty), but the retrieved security messages are operational/coordination rather than escalation/war rhetoric.",
+            "No discernible Iran-war escalation sentiment signature (fear/anger, calls for retaliation/de-escalation, attribution/blame frames) appears in the top semantic matches for the provided query.",
+            "Because the dataset slice doesn’t evidence the Iran-war narrative, any “key influencer” list would be unreliable; the next step should be to refine retrieval keywords/entities (e.g., IRGC, Tehran, Natanz, proxies, Hezbollah, missile/drone, retaliation, US bases) and/or expand the timeframe/sources, then rank authors within the Iran-specific clusters."
+          ]
+        }
+      },
+      {
+        "stepId": "step-2",
+        "owner": "audience_builder",
+        "tool": "Influencer Lookup",
+        "toolId": "influencer_lookup",
+        "data": {
+          "source": "mongo-influencer-lookup",
+          "influencers": [
+            {
+              "maskedUserId": "user_0396@c.us",
+              "displayName": "Noam Harel",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0436@c.us",
+              "displayName": "Shira Ben-David",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0360@c.us",
+              "displayName": "Neta Cohen",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0031@c.us",
+              "displayName": "Omer Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0196@c.us",
+              "displayName": "Lior Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            }
+          ]
+        }
+      }
+    ],
+    "error": "[\n  {\n    \"received\": \"top_groups\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"political_leaning_distribution\",\n      \"active_messages_last_days\",\n      \"top_groups_by_member_count\"\n    ],\n    \"path\": [\n      \"metric\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'political_leaning_distribution' | 'active_messages_last_days' | 'top_groups_by_member_count', received 'top_groups'\"\n  }\n]"
+  },
+  "8b47c47a-d101-4b54-8422-5d7ed7da9a5c": {
+    "id": "8b47c47a-d101-4b54-8422-5d7ed7da9a5c",
+    "question": "Who are the key influencers spreading narrative about the war with Iran",
+    "status": "awaiting_approval",
+    "createdAt": "2026-03-08T10:41:46.280Z",
+    "updatedAt": "2026-03-08T10:41:46.280Z",
+    "plan": {
+      "objective": "Identify key influencers spreading narratives about a war with Iran by discovering the main narratives in a recent timeframe and ranking the top spreaders per narrative.",
+      "assumptions": [
+        "A recent timeframe (e.g., last 30 days) is acceptable unless otherwise specified.",
+        "Influencers can be inferred from message activity, reactions, replies, and cross-group spread within the dataset.",
+        "There may be multiple distinct narratives about 'war with Iran'; we should surface the top clusters and rank influencers per cluster."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover top narratives about a war with Iran in a recent timeframe",
+          "rationale": "Identify the main narrative clusters first so influencer ranking can be performed per narrative rather than for a vague topic.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "Who are the key influencers spreading narrative about the war with Iran",
+            "focus": "discover_narratives",
+            "timeframeDays": 30,
+            "limit": 8,
+            "query": "war with Iran"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-2",
+          "title": "Rank influencers for each discovered narrative cluster",
+          "rationale": "Use the influencer ranking model over activity/reactions/replies and spread, scoped to each narrative cluster returned from narrative discovery.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-1.outputSummary"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "step-3",
+          "title": "Pull supporting stats on recent volume and top groups discussing Iran/war",
+          "rationale": "Add context on where the narrative is concentrated (groups/volume) to interpret and validate influencer spread.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "top_groups_by_member_count",
+            "lastDays": 30,
+            "limit": 20
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "pending"
+        },
+        {
+          "id": "step-4",
+          "title": "Synthesize a concise list of key influencers and which narratives they spread",
+          "rationale": "Combine narrative clusters, influencer rankings, and supporting stats into a UI-ready structured answer.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "Key influencers (ranked)",
+              "Narratives they are spreading",
+              "Where it is spreading (top groups / volume)",
+              "Notes & caveats"
+            ],
+            "emphasis": "Rank influencers by spread and engagement; map each to the relevant narrative cluster(s)."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-4.args.sections",
+            "emphasis": "steps.step-4.args.emphasis"
+          },
+          "status": "pending"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Key influencers (ranked)",
+          "Narratives they are spreading",
+          "Where it is spreading (top groups / volume)",
+          "Notes & caveats"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": []
+  },
+  "44924560-c59d-4682-bc1d-e0aa707ccc5c": {
+    "id": "44924560-c59d-4682-bc1d-e0aa707ccc5c",
+    "question": "Who are the key influencers spreading narrative about the war with Iran",
+    "status": "completed",
+    "createdAt": "2026-03-08T10:42:24.305Z",
+    "updatedAt": "2026-03-08T10:43:49.629Z",
+    "plan": {
+      "objective": "Identify and rank the key influencers spreading narratives about a war with Iran, grounded in recent narrative clusters and message activity.",
+      "assumptions": [
+        "“War with Iran” refers to narratives discussing a potential/ongoing conflict involving Iran in the recent discourse dataset.",
+        "Influencers can be approximated via message volume, reactions, replies, and cross-group spread as supported by influencer_lookup.",
+        "A recent time window (e.g., last 14 days) is sufficient unless the narrative explorer indicates otherwise."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "title": "Discover the dominant recent narratives about war with Iran",
+          "rationale": "First identify the main narrative clusters in recent messages so influencer ranking can be done per narrative rather than on a vague topic.",
+          "owner": "narrative_explorer",
+          "tool": "Narrative Explorer Agent",
+          "toolId": "narrative_explorer_agent",
+          "args": {
+            "question": "Who are the key influencers spreading narrative about the war with Iran",
+            "focus": "narrative discovery about war with Iran",
+            "timeframeDays": 14,
+            "limit": 8,
+            "query": "war with Iran escalation strike Tehran IRGC conflict"
+          },
+          "dependsOn": [],
+          "inputBindings": {
+            "question": "question"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: narrativeSummary, topNarratives, sentimentHighlights"
+        },
+        {
+          "id": "step-2",
+          "title": "Extract a compact narrative list for influencer ranking",
+          "rationale": "Convert the narrative discovery output into a concise set of narrative descriptors to feed into influencer ranking.",
+          "owner": "synthesizer",
+          "tool": "Summarization",
+          "toolId": "summarization",
+          "args": {
+            "text": "",
+            "maxBullets": 8
+          },
+          "dependsOn": [
+            "step-1"
+          ],
+          "inputBindings": {
+            "text": "steps.step-1.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, bullets"
+        },
+        {
+          "id": "step-3",
+          "title": "Rank key influencers for the war-with-Iran narratives",
+          "rationale": "Use platform activity signals (posting, reactions, replies, spread) to identify accounts most responsible for propagating the identified narratives.",
+          "owner": "audience_builder",
+          "tool": "Influencer Lookup",
+          "toolId": "influencer_lookup",
+          "args": {
+            "narrative": ""
+          },
+          "dependsOn": [
+            "step-2"
+          ],
+          "inputBindings": {
+            "narrative": "steps.step-2.outputSummary"
+          },
+          "status": "completed",
+          "outputSummary": "Returned fields: source, influencers"
+        },
+        {
+          "id": "step-4",
+          "title": "Add supporting context on overall recent volume and top groups discussing the topic",
+          "rationale": "Provide context on where the narrative spreads (top groups) and how active it is recently, to interpret influencer impact.",
+          "owner": "stats_query",
+          "tool": "DB Stats Query",
+          "toolId": "db_stats_query",
+          "args": {
+            "metric": "top_groups_by_member_count",
+            "lastDays": 14,
+            "limit": 10
+          },
+          "dependsOn": [],
+          "inputBindings": {},
+          "status": "completed",
+          "outputSummary": "Returned fields: metric, coverage, groups"
+        },
+        {
+          "id": "step-5",
+          "title": "Assemble final answer: key influencers spreading war-with-Iran narratives",
+          "rationale": "Combine influencer rankings with narrative context and top-group spread into a UI-ready structured response.",
+          "owner": "synthesizer",
+          "tool": "Synthesis Agent",
+          "toolId": "synthesis_agent",
+          "args": {
+            "sections": [
+              "Key influencers (ranked)",
+              "Narratives they are spreading",
+              "Where it spreads (top groups)",
+              "Notes / caveats"
+            ],
+            "emphasis": "Rank influencers primarily by spread and engagement; attribute them to the discovered narratives; include supporting top-group context."
+          },
+          "dependsOn": [
+            "step-1",
+            "step-2",
+            "step-3",
+            "step-4"
+          ],
+          "inputBindings": {
+            "sections": "steps.step-5.args.sections",
+            "emphasis": "steps.step-5.args.emphasis"
+          },
+          "status": "completed",
+          "outputSummary": "The current 14-day dataset slice does not contain a clear, high-volume narrative cluster explicitly about “war with Iran” (e.g., Iran/IRGC/T"
+        }
+      ],
+      "expectedOutput": {
+        "format": "json",
+        "sections": [
+          "Key influencers (ranked)",
+          "Narratives they are spreading",
+          "Where it spreads (top groups)",
+          "Notes / caveats"
+        ]
+      }
+    },
+    "revisionNotes": [],
+    "artifacts": [
+      {
+        "stepId": "step-1",
+        "owner": "narrative_explorer",
+        "tool": "Narrative Explorer Agent",
+        "toolId": "narrative_explorer_agent",
+        "data": {
+          "narrativeSummary": "In the last 14 days, the available message clusters do not surface a clear, high-volume conversation specifically about “war with Iran / escalation / strike Tehran / IRGC.” The dominant recent clusters are domestic/civic topics (education reform, municipal budgets, cost of living, healthcare, housing) with only a small, generic “Security updates” cluster that is not explicitly tied to Iran in the retrieved content. As a result, influencer identification for the Iran-war narrative cannot be reliably computed from this dataset slice.",
+          "topNarratives": [
+            "Education reform (vol=18)",
+            "Municipal budgets (vol=12)",
+            "Cost of living (vol=10)",
+            "Healthcare access (vol=9)",
+            "Housing policy (vol=8)",
+            "Security updates (vol=7)",
+            "Small business support (vol=6)",
+            "Community volunteering (vol=4)"
+          ],
+          "sentimentHighlights": [
+            "Security-related discussion appears mixed/polarized at a high level, but the retrieved snippets do not contain Iran/IRGC/Tehran language, so Iran-specific sentiment can’t be inferred.",
+            "Cost-of-living narratives skew negative (pressure/complaints framing) in the high-level probe, but this is not connected to the Iran-war query in retrieved items.",
+            "Given the weak/irrelevant retrieval matches (all top-K hits scored ~0.1 and are about housing/healthcare/transport), any attempt to rank “key influencers” for Iran-war escalation from this window would be unreliable without additional relevant message retrieval."
+          ]
+        }
+      },
+      {
+        "stepId": "step-2",
+        "owner": "synthesizer",
+        "tool": "Summarization",
+        "toolId": "summarization",
+        "data": {
+          "source": "dummy-summarizer",
+          "bullets": [
+            "",
+            "Dummy bullet 2",
+            "Dummy bullet 3",
+            "Dummy bullet 4",
+            "Dummy bullet 5",
+            "Dummy bullet 6",
+            "Dummy bullet 7",
+            "Dummy bullet 8"
+          ]
+        }
+      },
+      {
+        "stepId": "step-3",
+        "owner": "audience_builder",
+        "tool": "Influencer Lookup",
+        "toolId": "influencer_lookup",
+        "data": {
+          "source": "mongo-influencer-lookup",
+          "influencers": [
+            {
+              "maskedUserId": "user_0396@c.us",
+              "displayName": "Noam Harel",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0436@c.us",
+              "displayName": "Shira Ben-David",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0360@c.us",
+              "displayName": "Neta Cohen",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0031@c.us",
+              "displayName": "Omer Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            },
+            {
+              "maskedUserId": "user_0196@c.us",
+              "displayName": "Lior Mizrahi",
+              "influenceScore": 1,
+              "narrative": "",
+              "messageCount": 1,
+              "reactionCount": 4,
+              "replyCount": 2,
+              "groupCount": 1
+            }
+          ]
+        }
+      },
+      {
+        "stepId": "step-4",
+        "owner": "stats_query",
+        "tool": "DB Stats Query",
+        "toolId": "db_stats_query",
+        "data": {
+          "metric": "top_groups_by_member_count",
+          "coverage": "Top 10 groups by member count from Mongo.",
+          "groups": [
+            {
+              "groupId": "group_0088@g.us",
+              "subject": "Haifa Transportation planning Forum 088",
+              "memberCount": 1022,
+              "politicalLeaning": "center"
+            },
+            {
+              "groupId": "group_0093@g.us",
+              "subject": "Sharon Cost of living Forum 093",
+              "memberCount": 1022,
+              "politicalLeaning": "left"
+            },
+            {
+              "groupId": "group_0290@g.us",
+              "subject": "Tel Aviv Local leadership Forum 290",
+              "memberCount": 1021,
+              "politicalLeaning": "center-left"
+            },
+            {
+              "groupId": "group_0403@g.us",
+              "subject": "Beer Sheva Housing policy Forum 403",
+              "memberCount": 1019,
+              "politicalLeaning": "center-right"
+            },
+            {
+              "groupId": "group_0103@g.us",
+              "subject": "Haifa Small business support Forum 103",
+              "memberCount": 1018,
+              "politicalLeaning": "left"
+            },
+            {
+              "groupId": "group_0229@g.us",
+              "subject": "Tel Aviv Healthcare access Forum 229",
+              "memberCount": 1017,
+              "politicalLeaning": "center-right"
+            },
+            {
+              "groupId": "group_0047@g.us",
+              "subject": "Negev Security updates Forum 047",
+              "memberCount": 1017,
+              "politicalLeaning": "center-left"
+            },
+            {
+              "groupId": "group_0254@g.us",
+              "subject": "Beer Sheva Local leadership Forum 254",
+              "memberCount": 1017,
+              "politicalLeaning": "mixed"
+            },
+            {
+              "groupId": "group_0455@g.us",
+              "subject": "Haifa Small business support Forum 455",
+              "memberCount": 1014,
+              "politicalLeaning": "left"
+            },
+            {
+              "groupId": "group_0033@g.us",
+              "subject": "Negev Transportation planning Forum 033",
+              "memberCount": 1012,
+              "politicalLeaning": "left"
+            }
+          ]
+        }
+      },
+      {
+        "stepId": "step-5",
+        "owner": "synthesizer",
+        "tool": "Synthesis Agent",
+        "toolId": "synthesis_agent",
+        "data": {
+          "answer": "The current 14-day dataset slice does not contain a clear, high-volume narrative cluster explicitly about “war with Iran” (e.g., Iran/IRGC/Tehran escalation/strike framing). Because relevant Iran-specific content was not retrieved at meaningful volume, key influencer attribution for this narrative cannot be made reliably from the provided artifacts. A generic “Security updates” cluster exists but is not demonstrably tied to Iran in the retrieved snippets.\n\nIf you still need a provisional list of active accounts returned by the influencer lookup in this run (not validated as Iran-war narrators), the top returned profiles are: Noam Harel, Shira Ben-David, Neta Cohen, Omer Mizrahi, and Lior Mizrahi (all with minimal activity signals in this slice).",
+          "keyFindingsCount": 4,
+          "caveatsCount": 4
+        }
+      }
+    ],
+    "finalAnswer": {
+      "answer": "The current 14-day dataset slice does not contain a clear, high-volume narrative cluster explicitly about “war with Iran” (e.g., Iran/IRGC/Tehran escalation/strike framing). Because relevant Iran-specific content was not retrieved at meaningful volume, key influencer attribution for this narrative cannot be made reliably from the provided artifacts. A generic “Security updates” cluster exists but is not demonstrably tied to Iran in the retrieved snippets.\n\nIf you still need a provisional list of active accounts returned by the influencer lookup in this run (not validated as Iran-war narrators), the top returned profiles are: Noam Harel, Shira Ben-David, Neta Cohen, Omer Mizrahi, and Lior Mizrahi (all with minimal activity signals in this slice).",
+      "keyFindings": [
+        "No distinct, high-volume conversation cluster about “war with Iran” appears in the last 14 days of available message clusters.",
+        "“Security updates” is present as a small cluster (vol=7) but retrieved content does not contain Iran/IRGC/Tehran language, so it cannot be attributed to an Iran-war narrative.",
+        "Top-K retrieval matches for the Iran-war query were weak/irrelevant (scores ~0.1; topics like housing/healthcare/transport), making influencer ranking for this specific narrative unreliable.",
+        "Influencer lookup returned five accounts, but each shows minimal engagement/volume (messageCount=1) and no narrative label, so they cannot be confirmed as spreading an Iran-war narrative from this dataset slice."
+      ],
+      "dataPoints": [
+        {
+          "label": "Time window analyzed (per Narrative Explorer)",
+          "value": "Last 14 days"
+        },
+        {
+          "label": "Iran-war narrative cluster detected",
+          "value": false
+        },
+        {
+          "label": "Security updates cluster volume",
+          "value": 7
+        },
+        {
+          "label": "Top narratives by volume (snapshot)",
+          "value": "Education reform (18); Municipal budgets (12); Cost of living (10); Healthcare access (9); Housing policy (8); Security updates (7); Small business support (6); Community volunteering (4)"
+        },
+        {
+          "label": "Retrieval quality for Iran-war query",
+          "value": "Weak/irrelevant; top-K scores ~0.1 (per Narrative Explorer notes)"
+        },
+        {
+          "label": "Returned influencer candidates (unverified for Iran-war narrative)",
+          "value": "Noam Harel; Shira Ben-David; Neta Cohen; Omer Mizrahi; Lior Mizrahi"
+        },
+        {
+          "label": "Influencer metrics (all returned candidates)",
+          "value": "influenceScore=1; messageCount=1; reactionCount=4; replyCount=2; groupCount=1"
+        },
+        {
+          "label": "Largest groups by member count (top examples)",
+          "value": "Haifa Transportation planning Forum 088 (1022); Sharon Cost of living Forum 093 (1022); Tel Aviv Local leadership Forum 290 (1021); Negev Security updates Forum 047 (1017)"
+        }
+      ],
+      "caveats": [
+        "No evidence in the retrieved snippets ties the observed “Security updates” discussion to Iran; therefore any Iran-war influencer list would be speculative.",
+        "Influencer lookup outputs lack narrative labels here (narrative=\"\") and show very low per-user activity (messageCount=1), insufficient for robust influencer identification.",
+        "The dataset slice appears dominated by domestic/civic topics; influencer results may reflect general activity rather than Iran-related narrative propagation.",
+        "If Iran-war discussion exists, it may be outside the last-14-day window, in other groups, in non-retrieved messages, or expressed with different keywords/aliases not captured by the current retrieval."
+      ],
+      "recommendedNextQuestions": [
+        "Expand the time window (e.g., last 60–180 days): do Iran/IRGC/Tehran escalation narratives appear, and what are their top clusters by volume?",
+        "Run a keyword/alias expansion for Iran-war discussion (e.g., IRGC, Tehran, nuclear, retaliation, \"regional war\", names of commanders/operations): which terms produce high-relevance hits?",
+        "Within the “Security updates” cluster, what are the most frequent entities/locations mentioned, and do any map to Iran-related escalation?",
+        "For messages that explicitly mention Iran/IRGC/Tehran, who are the top authors by (a) message volume, (b) reactions, (c) replies, and (d) cross-group spread?",
+        "Which groups (not just top by member count) have the highest concentration of Iran-related mentions, and what is their political-leaning distribution?",
+        "What is the stance distribution (escalation vs restraint) in Iran-related messages, and who are the top influencers per stance?"
+      ]
+    }
   }
 }

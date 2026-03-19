@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types --experimental-specifier-resolution=node",
     "generate:schema-dummy-data": "node scripts/generate-schema-dummy-data.mjs",
     "import:schema-dummy-data": "node scripts/import-schema-dummy-data.mjs",
-    "generate:group-messages": "node scripts/generate-group-messages-batch.mjs"
+    "generate:group-messages": "node scripts/generate-group-messages-batch.mjs",
+    "semantic:sync": "node scripts/run-semantic-sync.mjs"
   },
   "dependencies": {
     "@openai/agents": "^0.0.10",

@@ -30,8 +30,8 @@ This repository now includes a prototype web runtime that matches the meeting fl
 - Mongo-backed tools:
   - `db_stats_query`
   - `find_narratives_in_timeframe`
-  - `audience_lookup_dummy`
-  - `influencer_lookup_dummy`
+  - `audience_lookup`
+  - `influencer_lookup`
   - `vector_search_dummy` (mock scoring, real message retrieval from Mongo)
 - Still simplified/dummy:
   - summarization
@@ -50,9 +50,16 @@ The runtime does not hardcode support only for those questions.
    - copy `.env.example` to `.env.local`
    - set `OPENAI_API_KEY`
    - optional: set `OPENAI_MODEL` (default `gpt-4.1`)
+   - optional: set `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`)
+   - optional: set `OPENAI_EMBEDDING_DIMENSIONS` if you use a non-default embedding model
    - set `MONGO_URI`
    - set `MONGO_DB_NAME`
    - optional: set `MONGO_PLAN_JOBS_COLLECTION` (default `plan_jobs`)
+   - optional: set `MONGO_GROUP_SEMANTIC_COLLECTION` (default `group_semantic`)
+   - optional: set `MONGO_MESSAGE_SEMANTIC_COLLECTION` (default `message_semantic`)
+   - optional: set `MONGO_GROUP_SEMANTIC_VECTOR_INDEX` (default `group_semantic_vector_index`)
+   - optional: set `MONGO_MESSAGE_SEMANTIC_VECTOR_INDEX` (default `message_semantic_vector_index`)
+   - set `SEMANTIC_SYNC_SECRET` or `CRON_SECRET` for the protected sync route
    - optional: set `PLAN_STORE_DIR` only if you want file-backed fallback storage when Mongo is not configured
    - set `NEXT_PUBLIC_FIREBASE_API_KEY`
    - set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
@@ -67,3 +74,10 @@ The runtime does not hardcode support only for those questions.
 5. The UI only allows Google accounts whose email appears in `NEXT_PUBLIC_AUTH_ALLOWED_EMAILS`.
 
 Plan jobs are persisted in MongoDB when `MONGO_URI` is configured, using the `plan_jobs` collection by default. The file-backed store remains only as a local fallback, and `PLAN_STORE_DIR` applies to that fallback path.
+
+## Semantic sync
+
+- Backfill locally with `npm run semantic:sync -- --mode groups_backfill` and `npm run semantic:sync -- --mode messages_backfill`; add `--limit <n>` to cap either backfill run.
+- Incremental sync runs through `GET /api/internal/semantic-sync?mode=incremental` and is protected by `Authorization: Bearer <SEMANTIC_SYNC_SECRET>`.
+- `vercel.json` schedules the incremental sync route every 15 minutes.
+- Atlas vector search is required for the semantic audience tools; the runtime does not fall back to the old heuristic path.

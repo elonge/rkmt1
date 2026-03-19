@@ -2,20 +2,32 @@ import { Agent, run, tool } from "@openai/agents";
 import { z } from "zod";
 import {
   latestNarrativesInTimeframe,
-  lookupAudienceSegments,
-  lookupInfluencers,
-  runStatsQuery,
-  searchMessagesByMockVector,
 } from "../data/dummy-db";
+import { runStatsQuery } from "../data/stats";
+import {
+  lookupAudienceSegmentsSemantic,
+  lookupInfluencersSemantic,
+  SemanticConfigError,
+  SemanticSearchError,
+} from "../data/semantic";
 import {
   describeExecutableTools,
-  ExecutableToolId,
-  executableToolIdValues,
   getExecutableToolDefinition,
   getToolDefinition,
+  plannerExecutableToolIdValues,
+  PlannerExecutableToolId,
   ToolDefinition,
 } from "./tools";
 import {
+  audienceAgentOutputSchema,
+  narrativeAgentOutputSchema,
+  statsAgentOutputSchema,
+  summarizationOutputSchema,
+} from "./tool-output-schemas";
+import { createAudienceBuilderAgent } from "./audience-builder";
+import {
+  AgentToolCall,
+  dbStatsQueryToolFilterFieldByEntity,
   ExecutionArtifact,
   FinalAnswer,
   normalizeDbStatsQueryInput,
@@ -23,9 +35,11 @@ import {
   parsePartialDbStatsQueryInput,
   PlanDraft,
   PlanStep,
+  serializeDbStatsQueryInputForToolSchema,
   StatsQueryInput,
 } from "../types";
 import { plannerReferenceContext } from "./context";
+import { runWithToolDebugLogging } from "../runtime/tool-debug.ts";
 
 const MODEL_NAME = process.env.OPENAI_MODEL ?? "gpt-4.1";
 const OPENAI_ENABLED = Boolean(process.env.OPENAI_API_KEY);
@@ -42,13 +56,6 @@ const llmFinalAnswerSchema = z.object({
   caveats: z.array(z.string()),
   recommendedNextQuestions: z.array(z.string()),
 });
-
-const summarizationOutputSchema = z.object({
-  source: z.literal("llm-summarizer"),
-  answer: z.string(),
-  bullets: z.array(z.string()).min(1).max(10),
-});
-
 
 export class PlannerUnavailableError extends Error {
   constructor(message: string) {
@@ -160,7 +167,7 @@ function transformPlannerBindingsSchema(schema: z.ZodTypeAny): z.ZodTypeAny {
   return transformed;
 }
 
-function buildPlannerStepSchema(toolId: ExecutableToolId): z.ZodObject<any> {
+function buildPlannerStepSchema(toolId: PlannerExecutableToolId): z.ZodObject<any> {
   const toolDefinition = requireToolDefinition(toolId);
   return z
     .object({
@@ -175,7 +182,7 @@ function buildPlannerStepSchema(toolId: ExecutableToolId): z.ZodObject<any> {
     .strict();
 }
 
-function buildStepRepairSchema(toolId: ExecutableToolId): z.ZodObject<any> {
+function buildStepRepairSchema(toolId: PlannerExecutableToolId): z.ZodObject<any> {
   const plannerStepSchema = plannerStepSchemaByToolId[toolId];
   return z
     .object({
@@ -186,12 +193,12 @@ function buildStepRepairSchema(toolId: ExecutableToolId): z.ZodObject<any> {
 }
 
 const plannerStepSchemaByToolId = Object.fromEntries(
-  executableToolIdValues.map((toolId) => [toolId, buildPlannerStepSchema(toolId)]),
-) as Record<ExecutableToolId, z.ZodObject<any>>;
+  plannerExecutableToolIdValues.map((toolId) => [toolId, buildPlannerStepSchema(toolId)]),
+) as Record<PlannerExecutableToolId, z.ZodObject<any>>;
 
 const llmPlanStepSchema = z.discriminatedUnion(
   "toolId",
-  executableToolIdValues.map((toolId) => plannerStepSchemaByToolId[toolId]) as any,
+  plannerExecutableToolIdValues.map((toolId) => plannerStepSchemaByToolId[toolId]) as any,
 );
 
 const llmPlanDraftSchema = z.object({
@@ -205,8 +212,8 @@ const llmPlanDraftSchema = z.object({
 });
 
 const stepRepairSchemaByToolId = Object.fromEntries(
-  executableToolIdValues.map((toolId) => [toolId, buildStepRepairSchema(toolId)]),
-) as Record<ExecutableToolId, z.ZodObject<any>>;
+  plannerExecutableToolIdValues.map((toolId) => [toolId, buildStepRepairSchema(toolId)]),
+) as Record<PlannerExecutableToolId, z.ZodObject<any>>;
 
 type LlmPlanStep = z.infer<typeof llmPlanStepSchema>;
 type LlmPlanDraft = z.infer<typeof llmPlanDraftSchema>;
@@ -245,36 +252,191 @@ function specialistToolParameters(toolId: string) {
   return transformStructuredToolParametersSchema(requireToolDefinition(toolId).argsSchema);
 }
 
-const vectorSearchToolDefinition = requireToolDefinition("vector_search");
+type SpecialistExecutionContext = {
+  agentToolCalls: AgentToolCall[];
+  onAgentToolCalls?: (agentToolCalls: AgentToolCall[]) => Promise<void> | void;
+  rootQuestion?: string;
+  failedToolCallEncountered?: boolean;
+};
+
+function normalizeTraceValue(value: unknown): AgentToolCall["input"] {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeTraceValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([key, entryValue]) => [key, normalizeTraceValue(entryValue)]),
+    );
+  }
+
+  return String(value);
+}
+
+function cloneAgentToolCalls(agentToolCalls: AgentToolCall[]): AgentToolCall[] {
+  return agentToolCalls.map((agentToolCall) => ({
+    ...agentToolCall,
+    input: normalizeTraceValue(agentToolCall.input),
+    output:
+      agentToolCall.output === undefined ? undefined : normalizeTraceValue(agentToolCall.output),
+    debugLogs: agentToolCall.debugLogs.map((debugLog) => ({
+      ...debugLog,
+      data: debugLog.data === undefined ? undefined : normalizeTraceValue(debugLog.data),
+    })),
+  }));
+}
+
+function updateAgentToolCall(
+  agentToolCalls: AgentToolCall[],
+  toolCallId: string,
+  update: (agentToolCall: AgentToolCall) => AgentToolCall,
+): AgentToolCall[] {
+  return agentToolCalls.map((agentToolCall) =>
+    agentToolCall.id === toolCallId ? update(agentToolCall) : agentToolCall,
+  );
+}
+
+async function publishAgentToolCalls(
+  traceContext: SpecialistExecutionContext | undefined,
+  agentToolCalls: AgentToolCall[],
+): Promise<void> {
+  if (!traceContext) {
+    return;
+  }
+
+  traceContext.agentToolCalls = cloneAgentToolCalls(agentToolCalls);
+  await traceContext.onAgentToolCalls?.(cloneAgentToolCalls(traceContext.agentToolCalls));
+}
+
+function getSpecialistExecutionContext(context: unknown): SpecialistExecutionContext | undefined {
+  if (!context || typeof context !== "object" || !("context" in context)) {
+    return undefined;
+  }
+
+  const nestedContext = (context as { context?: unknown }).context;
+  if (
+    !nestedContext ||
+    typeof nestedContext !== "object" ||
+    !Array.isArray((nestedContext as { agentToolCalls?: unknown }).agentToolCalls)
+  ) {
+    return undefined;
+  }
+
+  return nestedContext as SpecialistExecutionContext;
+}
+
+async function executeWithAgentToolTrace<T>(
+  toolDefinition: ToolDefinition,
+  input: unknown,
+  context: unknown,
+  execute: () => Promise<T>,
+): Promise<T> {
+  const traceContext = getSpecialistExecutionContext(context);
+  if (!traceContext) {
+    return execute();
+  }
+
+  if (traceContext.failedToolCallEncountered) {
+    throw new Error(
+      `A previous internal tool call already failed for this step. Additional fallback tool calls are disabled.`,
+    );
+  }
+
+  const nextToolCall: AgentToolCall = {
+    id: `${toolDefinition.toolId}-${traceContext.agentToolCalls.length + 1}`,
+    tool: toolDefinition.label,
+    toolId: toolDefinition.toolId,
+    status: "running",
+    input: normalizeTraceValue(input),
+    debugLogs: [],
+  };
+
+  const startedToolCalls = [...traceContext.agentToolCalls, nextToolCall];
+  await publishAgentToolCalls(traceContext, startedToolCalls);
+
+  const appendDebugLog = async (message: string, data?: unknown) => {
+    const updatedToolCalls = updateAgentToolCall(
+      traceContext.agentToolCalls,
+      nextToolCall.id,
+      (agentToolCall) => ({
+        ...agentToolCall,
+        debugLogs: [
+          ...agentToolCall.debugLogs,
+          {
+            message,
+            data: data === undefined ? undefined : normalizeTraceValue(data),
+          },
+        ],
+      }),
+    );
+    await publishAgentToolCalls(traceContext, updatedToolCalls);
+  };
+
+  try {
+    const output = await runWithToolDebugLogging(appendDebugLog, execute);
+    const completedToolCalls = updateAgentToolCall(
+      traceContext.agentToolCalls,
+      nextToolCall.id,
+      (agentToolCall) => ({
+        ...agentToolCall,
+        status: "completed" as const,
+        output: normalizeTraceValue(output),
+      }),
+    );
+    await publishAgentToolCalls(traceContext, completedToolCalls);
+    return output;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown tool execution error";
+    traceContext.failedToolCallEncountered = true;
+    const failedToolCalls = updateAgentToolCall(
+      traceContext.agentToolCalls,
+      nextToolCall.id,
+      (agentToolCall) => ({
+        ...agentToolCall,
+        status: "failed" as const,
+        error: message,
+      }),
+    );
+    await publishAgentToolCalls(traceContext, failedToolCalls);
+    throw error;
+  }
+}
+
 const summarizationToolDefinition = requireToolDefinition("summarization");
 const dbStatsQueryToolDefinition = requireToolDefinition("db_stats_query");
 const audienceLookupToolDefinition = requireToolDefinition("audience_lookup");
 const influencerLookupToolDefinition = requireToolDefinition("influencer_lookup");
 const narrativeProbeToolDefinition = requireToolDefinition("narrative_probe");
 const latestNarrativesToolDefinition = requireToolDefinition("find_narratives_in_timeframe");
-const audienceBuilderAgentToolDefinition = requireToolDefinition("audience_builder_agent");
-const narrativeExplorerAgentToolDefinition = requireToolDefinition("narrative_explorer_agent");
-const statsQueryAgentToolDefinition = requireToolDefinition("stats_query_agent");
 
-const vectorSearchTool = tool({
-  name: vectorSearchToolDefinition.toolId,
-  description: vectorSearchToolDefinition.description,
-  parameters: specialistToolParameters(vectorSearchToolDefinition.toolId),
-  async execute(input) {
-    return searchMessagesByMockVector(input.query, input.topK);
-  },
-});
 
 const summarizationTool = tool({
   name: summarizationToolDefinition.toolId,
   description: summarizationToolDefinition.description,
   parameters: specialistToolParameters(summarizationToolDefinition.toolId),
-  async execute(input) {
-    return runSummarization({
-      text: input.text,
-      maxBullets: input.maxBullets,
-      focus: typeof input.focus === "string" ? input.focus : undefined,
-    });
+  async execute(input, context) {
+    return executeWithAgentToolTrace(summarizationToolDefinition, input, context, async () =>
+      runSummarization({
+        text: input.text,
+        maxBullets: input.maxBullets,
+        focus: typeof input.focus === "string" ? input.focus : undefined,
+      }),
+    );
   },
 });
 
@@ -282,8 +444,10 @@ const dbStatsQueryTool = tool({
   name: dbStatsQueryToolDefinition.toolId,
   description: dbStatsQueryToolDefinition.description,
   parameters: specialistToolParameters(dbStatsQueryToolDefinition.toolId),
-  async execute(input) {
-    return runStatsQuery(parseDbStatsQueryInput(input));
+  async execute(input, context) {
+    return executeWithAgentToolTrace(dbStatsQueryToolDefinition, input, context, async () =>
+      runStatsQuery(parseDbStatsQueryInput(input)),
+    );
   },
 });
 
@@ -291,8 +455,10 @@ const audienceLookupTool = tool({
   name: audienceLookupToolDefinition.toolId,
   description: audienceLookupToolDefinition.description,
   parameters: specialistToolParameters(audienceLookupToolDefinition.toolId),
-  async execute(input) {
-    return lookupAudienceSegments(input.question);
+  async execute(input, context) {
+    return executeWithAgentToolTrace(audienceLookupToolDefinition, input, context, async () =>
+      runAudienceLookup(input.question),
+    );
   },
 });
 
@@ -300,8 +466,16 @@ const influencerLookupTool = tool({
   name: influencerLookupToolDefinition.toolId,
   description: influencerLookupToolDefinition.description,
   parameters: specialistToolParameters(influencerLookupToolDefinition.toolId),
-  async execute(input) {
-    return lookupInfluencers(input.narrative);
+  async execute(input, context) {
+    return executeWithAgentToolTrace(influencerLookupToolDefinition, input, context, async () =>
+      runInfluencerLookup({
+        question: typeof input.question === "string" ? input.question : undefined,
+        narrative:
+          typeof input.narrative === "string" || input.narrative === null
+            ? input.narrative
+            : null,
+      }),
+    );
   },
 });
 
@@ -309,8 +483,10 @@ const narrativeProbeTool = tool({
   name: narrativeProbeToolDefinition.toolId,
   description: narrativeProbeToolDefinition.description,
   parameters: specialistToolParameters(narrativeProbeToolDefinition.toolId),
-  async execute(input) {
-    return buildNarrativeProbe(input.question);
+  async execute(input, context) {
+    return executeWithAgentToolTrace(narrativeProbeToolDefinition, input, context, async () =>
+      buildNarrativeProbe(input.question),
+    );
   },
 });
 
@@ -318,36 +494,17 @@ const latestNarrativesTimeframeTool = tool({
   name: latestNarrativesToolDefinition.toolId,
   description: latestNarrativesToolDefinition.description,
   parameters: specialistToolParameters(latestNarrativesToolDefinition.toolId),
-  async execute(input) {
-    return latestNarrativesInTimeframe(input.timeframeDays, input.limit);
+  async execute(input, context) {
+    return executeWithAgentToolTrace(latestNarrativesToolDefinition, input, context, async () =>
+      latestNarrativesInTimeframe(input.timeframeDays, input.limit),
+    );
   },
 });
 
-const audienceAgentOutputSchema = z.object({
-  audienceSummary: z.string(),
-  segmentCandidates: z.array(z.string()),
-  influencerLeads: z.array(z.string()),
-});
-
-const narrativeAgentOutputSchema = z.object({
-  narrativeSummary: z.string(),
-  topNarratives: z.array(z.string()),
-  sentimentHighlights: z.array(z.string()),
-});
-
-const statsAgentOutputSchema = z.object({
-  metricUsed: z.string(),
-  highlights: z.array(z.string()),
-  raw: z.record(z.any()),
-});
-
-const audienceBuilderAgent = new Agent({
-  name: "AudienceBuilder",
-  model: MODEL_NAME,
-  instructions:
-    "You are a specialist for users/groups/influencer audience construction. Use tools and return concise JSON.",
-  tools: [audienceLookupTool, influencerLookupTool, dbStatsQueryTool],
-  outputType: audienceAgentOutputSchema,
+const audienceBuilderAgent = createAudienceBuilderAgent({
+  modelName: MODEL_NAME,
+  executeWithAgentToolTrace,
+  specialistToolParameters,
 });
 
 const narrativeExplorerAgent = new Agent({
@@ -355,7 +512,7 @@ const narrativeExplorerAgent = new Agent({
   model: MODEL_NAME,
   instructions:
     "You are a specialist for narrative, sentiment, and text exploration. For latest narrative/volume requests, use find_narratives_in_timeframe. Return concise JSON.",
-  tools: [narrativeProbeTool, latestNarrativesTimeframeTool, vectorSearchTool, summarizationTool],
+  tools: [narrativeProbeTool, latestNarrativesTimeframeTool, summarizationTool],
   outputType: narrativeAgentOutputSchema,
 });
 
@@ -363,25 +520,27 @@ const statsQueryAgent = new Agent({
   name: "StatsQuery",
   model: MODEL_NAME,
   instructions:
-    "You are a metrics specialist. Pick an appropriate stats query, call db_stats_query, and summarize key facts.",
+    "You are a metrics specialist. Pick an appropriate stats query, call db_stats_query, match entity to the correct filter object, and summarize key facts.",
   tools: [dbStatsQueryTool],
   outputType: statsAgentOutputSchema,
 });
 
-const audienceBuilderAgentTool = audienceBuilderAgent.asTool({
-  toolName: audienceBuilderAgentToolDefinition.toolId,
-  toolDescription: audienceBuilderAgentToolDefinition.description,
-});
+const managerToolOutputSchemaByName = {
+  audience_builder_agent: audienceAgentOutputSchema,
+  narrative_explorer_agent: narrativeAgentOutputSchema,
+  stats_query_agent: statsAgentOutputSchema,
+} as const;
 
-const narrativeExplorerAgentTool = narrativeExplorerAgent.asTool({
-  toolName: narrativeExplorerAgentToolDefinition.toolId,
-  toolDescription: narrativeExplorerAgentToolDefinition.description,
-});
+type ManagerToolName = keyof typeof managerToolOutputSchemaByName;
+type ManagerToolOutputByName = {
+  [K in ManagerToolName]: z.infer<(typeof managerToolOutputSchemaByName)[K]>;
+};
 
-const statsQueryAgentTool = statsQueryAgent.asTool({
-  toolName: statsQueryAgentToolDefinition.toolId,
-  toolDescription: statsQueryAgentToolDefinition.description,
-});
+const specialistAgentByToolName: Record<ManagerToolName, Agent<any, any>> = {
+  audience_builder_agent: audienceBuilderAgent,
+  narrative_explorer_agent: narrativeExplorerAgent,
+  stats_query_agent: statsQueryAgent,
+};
 
 const plannerAgent = new Agent({
   name: "Planner",
@@ -397,6 +556,8 @@ const plannerAgent = new Agent({
     "Use inputBindings when step args depend on previous outputs.",
     "Return inputBindings using the same object shape as args, but with binding reference objects at leaf fields and null when a field has no binding.",
     "If inputBindings references a prior step, include that step id in dependsOn.",
+    "For db_stats_query, match entity to its filter object exactly: messages -> messageFilters, groups -> groupFilters, users -> userFilters, memberships -> membershipFilters.",
+    "Do not use announcementOnly or membershipApproval in message stats queries.",
     "Prefer 3-6 steps and keep titles/rationales concrete.",
   ].join(" "),
   outputType: llmPlanDraftSchema,
@@ -413,12 +574,13 @@ const reviserAgent = new Agent({
     "Set optional arg fields to null when unused.",
     "Return inputBindings using the same object shape as args, but with binding reference objects at leaf fields and null when a field has no binding.",
     "If inputBindings references a prior step, include that step id in dependsOn.",
+    "For db_stats_query, match entity to its filter object exactly: messages -> messageFilters, groups -> groupFilters, users -> userFilters, memberships -> membershipFilters.",
     "Return complete plan JSON only.",
   ].join(" "),
   outputType: llmPlanDraftSchema,
 });
 
-function createStepArgsRepairAgent(toolId: ExecutableToolId) {
+function createStepArgsRepairAgent(toolId: PlannerExecutableToolId) {
   return new Agent({
     name: "StepArgsRepair",
     model: MODEL_NAME,
@@ -431,6 +593,7 @@ function createStepArgsRepairAgent(toolId: ExecutableToolId) {
       "Regenerate args from scratch for the new tool schema instead of carrying over args from the previous tool.",
       "Prefer simple valid args over over-specified args.",
       "If inputBindings references a prior step, include that step id in dependsOn.",
+      "For db_stats_query, match entity to its filter object exactly: messages -> messageFilters, groups -> groupFilters, users -> userFilters, memberships -> membershipFilters.",
     ].join(" "),
     outputType: stepRepairSchemaByToolId[toolId],
   });
@@ -460,6 +623,7 @@ const summarizerAgent = new Agent({
 
 function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
   const seenStepIds = new Set<string>();
+  const seenStepToolDefinitions = new Map<string, ToolDefinition>();
 
   return {
     objective: plan.objective,
@@ -486,6 +650,7 @@ function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
         parsedBindings,
         normalizedDependsOn,
         seenStepIds,
+        seenStepToolDefinitions,
       );
       const normalizedArgs = validatePlannedStepArgs(
         normalizedStepId,
@@ -510,9 +675,11 @@ function normalizePlanDraft(plan: LlmPlanDraft): PlanDraft {
         dependsOn: normalizedDependsOn,
         inputBindings: parsedBindings,
         status: "pending",
+        agentToolCalls: [],
       };
 
       seenStepIds.add(normalized.id);
+      seenStepToolDefinitions.set(normalized.id, toolDefinition);
 
       return normalized;
     }),
@@ -878,6 +1045,29 @@ function serializePlannerBindingsValue(
   return binding ? parseSerializedBindingReference(binding) : null;
 }
 
+function serializeDbStatsQueryBindingsForToolSchema(
+  step: PlanStep,
+): Record<string, string> {
+  const entity = typeof step.args?.entity === "string" ? step.args.entity : undefined;
+  const filterField =
+    entity && entity in dbStatsQueryToolFilterFieldByEntity
+      ? dbStatsQueryToolFilterFieldByEntity[
+          entity as keyof typeof dbStatsQueryToolFilterFieldByEntity
+        ]
+      : null;
+
+  if (!filterField) {
+    return step.inputBindings ?? {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(step.inputBindings ?? {}).map(([path, binding]) => [
+      path.startsWith("filters.") ? `${filterField}.${path.slice("filters.".length)}` : path,
+      binding,
+    ]),
+  );
+}
+
 function normalizePlannedInputBindings(
   stepId: string,
   toolDefinition: ToolDefinition,
@@ -901,6 +1091,7 @@ function validatePlannedBindingSources(
   inputBindings: PlanStep["inputBindings"],
   dependsOn: string[],
   seenStepIds: Set<string>,
+  seenStepToolDefinitions: Map<string, ToolDefinition>,
 ): void {
   const allowedDependencies = new Set(dependsOn);
 
@@ -945,9 +1136,31 @@ function validatePlannedBindingSources(
       );
     }
 
+    const dependencyToolDefinition = seenStepToolDefinitions.get(dependencyId);
+    if (!dependencyToolDefinition) {
+      throw new PlannerExecutionError(
+        `Planner returned binding source "${rawBinding}" for ${stepId}.${argPath}, but no tool definition was found for step "${dependencyId}".`,
+      );
+    }
+
     if (source === "outputSummary" && path.length > 0) {
       throw new PlannerExecutionError(
         `Planner returned invalid outputSummary binding "${rawBinding}" for ${stepId}.${argPath}.`,
+      );
+    }
+
+    if (source === "args" && !getSchemaForArgPath(dependencyToolDefinition.argsSchema, path.join("."))) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid stepArgs binding "${rawBinding}" for ${stepId}.${argPath}. "${path.join(".")}" is not present in ${dependencyToolDefinition.toolId} args.`,
+      );
+    }
+
+    if (
+      source === "data" &&
+      !getSchemaForArgPath(dependencyToolDefinition.outputSchema, path.join("."))
+    ) {
+      throw new PlannerExecutionError(
+        `Planner returned invalid stepData binding "${rawBinding}" for ${stepId}.${argPath}. "${path.join(".")}" is not present in ${dependencyToolDefinition.toolId} output.`,
       );
     }
   }
@@ -1023,16 +1236,20 @@ function serializePlanForPlanner(plan: PlanDraft) {
       args:
         step.toolId in plannerStepSchemaByToolId
           ? serializePlannerArgsValue(
-              plannerStepSchemaByToolId[step.toolId as ExecutableToolId].shape.args,
-              step.args ?? {},
+              plannerStepSchemaByToolId[step.toolId as PlannerExecutableToolId].shape.args,
+              step.toolId === "db_stats_query"
+                ? serializeDbStatsQueryInputForToolSchema(step.args ?? {})
+                : (step.args ?? {}),
             )
           : step.args ?? {},
       dependsOn: step.dependsOn,
       inputBindings:
         step.toolId in plannerStepSchemaByToolId
           ? serializePlannerBindingsValue(
-              plannerStepSchemaByToolId[step.toolId as ExecutableToolId].shape.inputBindings,
-              step.inputBindings ?? {},
+              plannerStepSchemaByToolId[step.toolId as PlannerExecutableToolId].shape.inputBindings,
+              step.toolId === "db_stats_query"
+                ? serializeDbStatsQueryBindingsForToolSchema(step)
+                : (step.inputBindings ?? {}),
             )
           : step.inputBindings ?? {},
     })),
@@ -1090,7 +1307,9 @@ async function regenerateChangedStepArgs(
     '- At leaf fields in `inputBindings`, set a binding object or `null`.',
     '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
     '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
-    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    '- For nested args like `messageFilters.lastDays`, set `inputBindings.messageFilters.lastDays = {"source":"stepData","stepId":"step-1","path":"windowDays"}`.',
+    '- For `stepData` bindings, only reference fields declared in the producing tool\'s Output schema.',
+    '- For `db_stats_query`, use exactly one matching filter object: `messageFilters`, `groupFilters`, `userFilters`, or `membershipFilters`, based on `entity`.',
     "",
     `Current step before revision:\n${JSON.stringify(serializedCurrentStep, null, 2)}`,
     "",
@@ -1109,7 +1328,7 @@ async function regenerateChangedStepArgs(
     "The toolId changed for this step. Regenerate args and inputBindings from scratch for the revised tool schema. Do not reuse the previous tool args or bindings.",
   ].join("\n");
 
-  const revisedToolId = revisedStep.toolId as ExecutableToolId;
+  const revisedToolId = revisedStep.toolId as PlannerExecutableToolId;
   const repaired = await runStructuredAgentWithRetry(
     createStepArgsRepairAgent(revisedToolId),
     prompt,
@@ -1219,7 +1438,11 @@ function resolveBindingValue(
     if (source === "data") {
       resolvedValue = getObjectPath(artifact?.data, path);
     } else if (source === "args") {
-      resolvedValue = getObjectPath(referencedStep?.args, path);
+      const argsSource =
+        referencedStep?.toolId === "db_stats_query" && referencedStep.args
+          ? serializeDbStatsQueryInputForToolSchema(referencedStep.args)
+          : referencedStep?.args;
+      resolvedValue = getObjectPath(argsSource, path);
     } else if (source === "outputSummary") {
       if (typeof referencedStep?.outputSummary === "string") {
         resolvedValue = referencedStep.outputSummary;
@@ -1289,12 +1512,17 @@ async function runStructuredAgentWithRetry<T>(
   agent: Agent<any, any>,
   prompt: string,
   parseOutput: (output: unknown) => T,
+  runContext?: SpecialistExecutionContext,
 ): Promise<T> {
   let currentPrompt = prompt;
   let validationError: PlannerExecutionError | z.ZodError | null = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = await run(agent, currentPrompt);
+    const result = await run(
+      agent,
+      currentPrompt,
+      runContext ? { context: runContext } : undefined,
+    );
 
     try {
       return parseOutput(result.finalOutput);
@@ -1318,25 +1546,6 @@ async function runStructuredAgentWithRetry<T>(
   throw validationError ?? new PlannerExecutionError("Structured agent failed after retry.");
 }
 
-function parseRecordOutput(raw: unknown): Record<string, unknown> {
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    return raw as Record<string, unknown>;
-  }
-
-  if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      // No-op; throw below.
-    }
-  }
-
-  throw new PlanExecutionError("Specialist agent returned a non-object response.");
-}
-
 function summarizeStepData(data: Record<string, unknown>): string {
   const keys = Object.keys(data);
   if (keys.length === 0) {
@@ -1355,6 +1564,31 @@ type SummarizationInput = {
   maxBullets: number;
   focus?: string;
 };
+
+type InfluencerLookupInput = {
+  question?: string;
+  narrative?: string | null;
+};
+
+function throwIfAgentToolCallsFailed(
+  managerToolName: ManagerToolName,
+  agentToolCalls: AgentToolCall[],
+): void {
+  const failedToolCalls = agentToolCalls.filter((agentToolCall) => agentToolCall.status === "failed");
+  if (failedToolCalls.length === 0) {
+    return;
+  }
+
+  const failureSummary = failedToolCalls
+    .map((agentToolCall) =>
+      `${agentToolCall.toolId}: ${agentToolCall.error ?? "Unknown internal tool failure"}`,
+    )
+    .join("; ");
+
+  throw new Error(
+    `Specialist agent "${managerToolName}" had failed internal tool calls: ${failureSummary}`,
+  );
+}
 
 async function runSummarization(input: SummarizationInput) {
   if (!OPENAI_ENABLED) {
@@ -1384,6 +1618,30 @@ async function runSummarization(input: SummarizationInput) {
   }
 }
 
+function semanticLookupErrorMessage(error: unknown): string {
+  if (error instanceof SemanticConfigError || error instanceof SemanticSearchError) {
+    return error.message;
+  }
+
+  return error instanceof Error ? error.message : "Unknown semantic audience error";
+}
+
+async function runAudienceLookup(question: string) {
+  try {
+    return await lookupAudienceSegmentsSemantic(question);
+  } catch (error) {
+    throw new PlanExecutionError(`Audience lookup failed: ${semanticLookupErrorMessage(error)}`);
+  }
+}
+
+async function runInfluencerLookup(input: InfluencerLookupInput) {
+  try {
+    return await lookupInfluencersSemantic(input);
+  } catch (error) {
+    throw new PlanExecutionError(`Influencer lookup failed: ${semanticLookupErrorMessage(error)}`);
+  }
+}
+
 function buildSpecialistPrompt(
   question: string,
   step: PlanStep,
@@ -1402,27 +1660,26 @@ function buildSpecialistPrompt(
   ].join("\n\n");
 }
 
-function specialistManager(toolChoice: string): Agent {
-  return new Agent({
-    name: "SpecialistManager",
-    model: MODEL_NAME,
-    instructions: [
-      "Execute a single specialist step.",
-      "Call the selected tool exactly once and return structured JSON.",
-      "Do not answer from general knowledge without using the tool.",
-    ].join(" "),
-    tools: [audienceBuilderAgentTool, narrativeExplorerAgentTool, statsQueryAgentTool],
-    toolUseBehavior: "stop_on_first_tool",
-    modelSettings: {
-      toolChoice,
-    },
-  });
-}
-
 async function runWithManagerTool(
-  toolName: "audience_builder_agent" | "narrative_explorer_agent" | "stats_query_agent",
+  toolName: "audience_builder_agent",
   prompt: string,
-): Promise<Record<string, unknown>> {
+  traceContext?: SpecialistExecutionContext,
+): Promise<ManagerToolOutputByName["audience_builder_agent"]>;
+async function runWithManagerTool(
+  toolName: "narrative_explorer_agent",
+  prompt: string,
+  traceContext?: SpecialistExecutionContext,
+): Promise<ManagerToolOutputByName["narrative_explorer_agent"]>;
+async function runWithManagerTool(
+  toolName: "stats_query_agent",
+  prompt: string,
+  traceContext?: SpecialistExecutionContext,
+): Promise<ManagerToolOutputByName["stats_query_agent"]>;
+async function runWithManagerTool(
+  toolName: ManagerToolName,
+  prompt: string,
+  traceContext?: SpecialistExecutionContext,
+): Promise<ManagerToolOutputByName[ManagerToolName]> {
   if (!OPENAI_ENABLED) {
     throw new PlanExecutionError(
       `Cannot execute specialist tool "${toolName}" without OPENAI_API_KEY.`,
@@ -1430,8 +1687,14 @@ async function runWithManagerTool(
   }
 
   try {
-    const result = await run(specialistManager(toolName), prompt);
-    return parseRecordOutput(result.finalOutput);
+    const output = await runStructuredAgentWithRetry(
+      specialistAgentByToolName[toolName],
+      prompt,
+      (output) => managerToolOutputSchemaByName[toolName].parse(output),
+      traceContext,
+    );
+    throwIfAgentToolCallsFailed(toolName, traceContext?.agentToolCalls ?? []);
+    return output;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown specialist execution error";
     throw new PlanExecutionError(`Specialist tool "${toolName}" failed: ${message}`);
@@ -1443,6 +1706,7 @@ async function executeToolById(
   plan: PlanDraft,
   step: PlanStep,
   artifacts: ExecutionArtifact[],
+  hooks: Pick<ExecutionHooks, "onAgentToolCalls"> = {},
 ): Promise<StepExecutionResult> {
   const toolDefinition = getToolDefinition(step.toolId);
   if (!toolDefinition) {
@@ -1482,14 +1746,6 @@ async function executeToolById(
       return { data, summary: summarizeStepData(data) };
     }
 
-    case "vector_search": {
-      const data = await searchMessagesByMockVector(
-        resolvedArgs.query as string,
-        resolvedArgs.topK as number,
-      );
-      return { data, summary: summarizeStepData(data) };
-    }
-
     case "summarization": {
       const data = await runSummarization({
         text: resolvedArgs.text as string,
@@ -1500,16 +1756,18 @@ async function executeToolById(
     }
 
     case "audience_lookup": {
-      const data = await lookupAudienceSegments(resolvedArgs.question as string);
+      const data = await runAudienceLookup(resolvedArgs.question as string);
       return { data, summary: summarizeStepData(data) };
     }
 
     case "influencer_lookup": {
-      const narrative =
-        typeof resolvedArgs.narrative === "string" || resolvedArgs.narrative === null
-          ? resolvedArgs.narrative
-          : null;
-      const data = await lookupInfluencers(narrative);
+      const data = await runInfluencerLookup({
+        question: typeof resolvedArgs.question === "string" ? resolvedArgs.question : undefined,
+        narrative:
+          typeof resolvedArgs.narrative === "string" || resolvedArgs.narrative === null
+            ? resolvedArgs.narrative
+            : null,
+      });
       return { data, summary: summarizeStepData(data) };
     }
 
@@ -1519,6 +1777,12 @@ async function executeToolById(
     }
 
     case "audience_builder_agent": {
+      const traceContext: SpecialistExecutionContext = {
+        agentToolCalls: [],
+        onAgentToolCalls: async (agentToolCalls) => hooks.onAgentToolCalls?.(step, agentToolCalls),
+        rootQuestion: typeof resolvedArgs.question === "string" ? resolvedArgs.question : question,
+        failedToolCallEncountered: false,
+      };
       const prompt = buildSpecialistPrompt(
         question,
         step,
@@ -1526,11 +1790,21 @@ async function executeToolById(
         artifacts,
         "Return audience insights and influencer leads.",
       );
-      const data = await runWithManagerTool("audience_builder_agent", prompt);
-      return { data, summary: summarizeStepData(data) };
+      const data = await runWithManagerTool("audience_builder_agent", prompt, traceContext);
+      return {
+        data,
+        summary: summarizeStepData(data),
+        agentToolCalls: cloneAgentToolCalls(traceContext.agentToolCalls),
+      };
     }
 
     case "narrative_explorer_agent": {
+      const traceContext: SpecialistExecutionContext = {
+        agentToolCalls: [],
+        onAgentToolCalls: async (agentToolCalls) => hooks.onAgentToolCalls?.(step, agentToolCalls),
+        rootQuestion: typeof resolvedArgs.question === "string" ? resolvedArgs.question : question,
+        failedToolCallEncountered: false,
+      };
       const prompt = buildSpecialistPrompt(
         question,
         step,
@@ -1538,8 +1812,12 @@ async function executeToolById(
         artifacts,
         "Return narrative, retrieval, and sentiment insights.",
       );
-      const data = await runWithManagerTool("narrative_explorer_agent", prompt);
-      return { data, summary: summarizeStepData(data) };
+      const data = await runWithManagerTool("narrative_explorer_agent", prompt, traceContext);
+      return {
+        data,
+        summary: summarizeStepData(data),
+        agentToolCalls: cloneAgentToolCalls(traceContext.agentToolCalls),
+      };
     }
 
     case "synthesis_agent": {
@@ -1579,8 +1857,10 @@ export async function draftPlan(question: string): Promise<PlanDraft> {
     '- At leaf fields in `inputBindings`, set a binding object or `null`.',
     '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
     '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
-    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    '- For nested args like `messageFilters.lastDays`, set `inputBindings.messageFilters.lastDays = {"source":"stepData","stepId":"step-1","path":"windowDays"}`.',
+    '- For `stepData` bindings, only reference fields declared in the producing tool\'s Output schema.',
     '- Do not invent input binding target fields like `narratives`, `segments`, `stats`, or `results` unless they are declared args for that tool.',
+    '- For `db_stats_query`, use exactly one matching filter object: `messageFilters`, `groupFilters`, `userFilters`, or `membershipFilters`, based on `entity`.',
     "",
     "Reference context:",
     plannerReferenceContext(),
@@ -1632,8 +1912,10 @@ export async function revisePlan(
     '- At leaf fields in `inputBindings`, set a binding object or `null`.',
     '- Allowed binding objects are: `{"source":"question"}`, `{"source":"currentStep","field":"title"}`, `{"source":"currentStep","field":"rationale"}`, `{"source":"stepData","stepId":"step-1","path":"field.name"}`, `{"source":"stepArgs","stepId":"step-1","path":"field.name"}`, or `{"source":"stepOutputSummary","stepId":"step-1"}`.',
     '- Do not put literal strings like `\"7\"`, `\"30\"`, or free text into `inputBindings`.',
-    '- For nested args like `filter.politicalLeaning`, set `inputBindings.filter.politicalLeaning = {"source":"stepData","stepId":"step-1","path":"leaning"}`.',
+    '- For nested args like `messageFilters.lastDays`, set `inputBindings.messageFilters.lastDays = {"source":"stepData","stepId":"step-1","path":"windowDays"}`.',
+    '- For `stepData` bindings, only reference fields declared in the producing tool\'s Output schema.',
     '- Do not invent input binding target fields like `narratives`, `segments`, `stats`, or `results` unless they are declared args for that tool.',
+    '- For `db_stats_query`, use exactly one matching filter object: `messageFilters`, `groupFilters`, `userFilters`, or `membershipFilters`, based on `entity`.',
     "- Keep already-accepted revisions unless the latest request explicitly changes them.",
     "- Preserve existing step ids where possible.",
     "- If a step changes toolId, regenerate args and inputBindings for the new tool schema instead of reusing the prior tool's args.",
@@ -1664,6 +1946,7 @@ type StepExecutionResult = {
   data: Record<string, unknown>;
   summary: string;
   finalAnswer?: FinalAnswer;
+  agentToolCalls?: AgentToolCall[];
 };
 
 async function executeSingleStep(
@@ -1671,6 +1954,7 @@ async function executeSingleStep(
   plan: PlanDraft,
   step: PlanStep,
   artifacts: ExecutionArtifact[],
+  hooks: Pick<ExecutionHooks, "onAgentToolCalls"> = {},
 ): Promise<StepExecutionResult> {
   for (const dependency of step.dependsOn) {
     const satisfied = artifacts.some((artifact) => artifact.stepId === dependency);
@@ -1681,7 +1965,7 @@ async function executeSingleStep(
     }
   }
 
-  return executeToolById(question, plan, step, artifacts);
+  return executeToolById(question, plan, step, artifacts, hooks);
 }
 
 async function synthesizeFinalAnswer(
@@ -1713,6 +1997,10 @@ async function synthesizeFinalAnswer(
 
 export type ExecutionHooks = {
   onStepStart?: (step: PlanStep) => Promise<void> | void;
+  onAgentToolCalls?: (
+    step: PlanStep,
+    agentToolCalls: AgentToolCall[],
+  ) => Promise<void> | void;
   onStepComplete?: (
     step: PlanStep,
     artifact: ExecutionArtifact,
@@ -1733,13 +2021,14 @@ export async function executePlan(
     await hooks.onStepStart?.(step);
 
     try {
-      const stepResult = await executeSingleStep(question, plan, step, artifacts);
+      const stepResult = await executeSingleStep(question, plan, step, artifacts, hooks);
       const artifact: ExecutionArtifact = {
         stepId: step.id,
         owner: step.owner,
         tool: step.tool,
         toolId: step.toolId,
         data: stepResult.data,
+        agentToolCalls: stepResult.agentToolCalls ?? [],
       };
 
       artifacts.push(artifact);

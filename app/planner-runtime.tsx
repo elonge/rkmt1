@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { signOut } from "firebase/auth";
-import type { ExecutionArtifact, PlanJob } from "@/lib/types";
+import type { AgentToolCall, ExecutionArtifact, PlanJob, PlanStep } from "@/lib/types";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/firebase/auth-provider";
 
@@ -18,12 +18,30 @@ const isPendingApproval = (job: PlanJob | null): boolean =>
 const canRerunPlan = (job: PlanJob | null): boolean =>
   Boolean(job && (job.status === "completed" || job.status === "failed"));
 
+const tracedAgentToolIds = new Set([
+  "audience_builder_agent",
+  "narrative_explorer_agent",
+  "stats_query_agent",
+]);
+
+function getVisibleAgentToolCalls(
+  step: PlanStep,
+  artifact: ExecutionArtifact | undefined,
+): AgentToolCall[] {
+  if (step.agentToolCalls.length > 0) {
+    return step.agentToolCalls;
+  }
+
+  return artifact?.agentToolCalls ?? [];
+}
+
 export default function PlannerRuntime() {
   const { user } = useAuth();
   const [question, setQuestion] = useState("");
   const [feedback, setFeedback] = useState("");
   const [job, setJob] = useState<PlanJob | null>(null);
   const [revisionHistory, setRevisionHistory] = useState<string[]>([]);
+  const [openAgentTraceStepIds, setOpenAgentTraceStepIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const jobId = job?.id;
@@ -208,6 +226,37 @@ export default function PlannerRuntime() {
     }
   }, [job]);
 
+  useEffect(() => {
+    if (!job) {
+      setOpenAgentTraceStepIds([]);
+      return;
+    }
+
+    const stepIdsToOpen = job.plan.steps
+      .filter((step) => {
+        if (!tracedAgentToolIds.has(step.toolId)) {
+          return false;
+        }
+
+        const artifact = job.artifacts.find((candidate) => candidate.stepId === step.id);
+        const agentToolCalls = getVisibleAgentToolCalls(step, artifact);
+        return step.status === "running" || agentToolCalls.length > 0;
+      })
+      .map((step) => step.id);
+
+    if (stepIdsToOpen.length === 0) {
+      return;
+    }
+
+    setOpenAgentTraceStepIds((current) => {
+      const next = new Set(current);
+      for (const stepId of stepIdsToOpen) {
+        next.add(stepId);
+      }
+      return [...next];
+    });
+  }, [job]);
+
   return (
     <main className="page">
       <section className="card">
@@ -273,6 +322,8 @@ export default function PlannerRuntime() {
           <ol className="steps">
             {job.plan.steps.map((step) => {
               const artifact = artifactsByStepId.get(step.id);
+              const agentToolCalls = getVisibleAgentToolCalls(step, artifact);
+              const isTracedAgentStep = tracedAgentToolIds.has(step.toolId);
               const hasStepOutput =
                 (step.status === "completed" || step.status === "failed") &&
                 Boolean(artifact || step.outputSummary);
@@ -292,6 +343,77 @@ export default function PlannerRuntime() {
                     <summary>DEBUG</summary>
                     <pre>{JSON.stringify(step, null, 2)}</pre>
                   </details>
+
+                  {isTracedAgentStep && (step.status === "running" || agentToolCalls.length > 0) ? (
+                    <details
+                      className="step-detail"
+                      open={openAgentTraceStepIds.includes(step.id)}
+                      onToggle={(event) => {
+                        const isOpen = event.currentTarget.open;
+                        setOpenAgentTraceStepIds((current) => {
+                          const next = new Set(current);
+                          if (isOpen) {
+                            next.add(step.id);
+                          } else {
+                            next.delete(step.id);
+                          }
+                          return [...next];
+                        });
+                      }}
+                    >
+                      <summary>
+                        agent tool calls
+                        {agentToolCalls.length > 0 ? ` (${agentToolCalls.length})` : ""}
+                      </summary>
+                      {agentToolCalls.length > 0 ? (
+                        <div className="agent-tool-calls">
+                          {agentToolCalls.map((agentToolCall) => (
+                            <div key={agentToolCall.id} className="agent-tool-call">
+                              <div className="row">
+                                <strong>{agentToolCall.tool}</strong>
+                                <span className={`status status-${agentToolCall.status}`}>
+                                  {agentToolCall.status}
+                                </span>
+                              </div>
+                              <p className="subtle">{agentToolCall.toolId}</p>
+                              <p className="trace-label">input</p>
+                              <pre>{JSON.stringify(agentToolCall.input, null, 2)}</pre>
+                              {agentToolCall.debugLogs.length > 0 ? (
+                                <>
+                                  <p className="trace-label">
+                                    debug logs ({agentToolCall.debugLogs.length})
+                                  </p>
+                                  <div className="tool-debug-logs">
+                                    {agentToolCall.debugLogs.map((debugLog, index) => (
+                                      <div
+                                        key={`${agentToolCall.id}-debug-${index}`}
+                                        className="tool-debug-log"
+                                      >
+                                        <p>{debugLog.message}</p>
+                                        {debugLog.data !== undefined ? (
+                                          <pre>{JSON.stringify(debugLog.data, null, 2)}</pre>
+                                        ) : null}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : null}
+                              <p className="trace-label">output</p>
+                              {agentToolCall.output !== undefined ? (
+                                <pre>{JSON.stringify(agentToolCall.output, null, 2)}</pre>
+                              ) : agentToolCall.error ? (
+                                <p className="error">{agentToolCall.error}</p>
+                              ) : (
+                                <p className="subtle">Waiting for tool output.</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="subtle">Waiting for the agent to call its first internal tool.</p>
+                      )}
+                    </details>
+                  ) : null}
 
                   {hasStepOutput ? (
                     <details className="step-detail">

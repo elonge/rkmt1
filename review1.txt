@@ -1,0 +1,108 @@
+==Issues found
+1. Silent Pre-Defined Fallbacks Hiding Errors
+There are several places where the system silently catches errors and returns dummy/fallback data instead of failing the step. This will cause cascading failures because subsequent steps will try to use the fallback data.
+
+runWithManagerTool (Specialist Agents): In lib/agents/orchestrator.ts, if a specialist agent (e.g., audience_builder_agent) fails during execution (e.g., OpenAI times out, or the LLM passes an invalid argument to the tool), the catch block intercepts it:
+
+TypeScript
+catch (error) {
+  return {
+    mode: "fallback",
+    tool: toolName,
+    error: error instanceof Error ? error.message : "Unknown error",
+  };
+}
+Impact: The step status is updated to "completed" (not "failed"), and the artifacts array gets populated with this fallback JSON. Any step depending on this data will fail downstream.
+
+synthesizeFinalAnswer: Similarly, if the synthesisAgent fails, it silently falls back to fallbackFinalAnswer(question, artifacts), which just dumps the raw JSON keys of the first 4 artifacts instead of giving the user a real synthesized answer.
+
+2. Argument Mismatches & Strict Zod Validation
+The way the planner and specialist tools parse arguments creates several friction points where plans will fail:
+
+Zod .strict() Tool execution: In orchestrator.ts, the tools given to specialist agents enforce strictToolParameters(), which calls .strict() on the Zod schema. If an LLM decides to pass a helpful but undeclared argument (e.g., passing context: "user wants to know X" along with the requested parameters), Zod will throw an error, causing the agent to crash and trigger the fallback mentioned above.
+
+Input Bindings Drop for Agents: In normalizePlannedInputBindings, there is a dangerous piece of logic for agent tools:
+
+TypeScript
+if (toolDefinition.kind === "agent") {
+  return Object.fromEntries(
+    Object.entries(inputBindings ?? {}).filter(([argPath]) => !invalidTargets.includes(argPath)),
+  );
+}
+If the LLM invents a binding name to pass data to an agent (which LLMs frequently do), instead of throwing a PlannerExecutionError so the repair agent can fix it, the system silently drops the binding. The agent then runs without the necessary context from previous steps.
+
+3. synthesis_agent is Planner-Visible
+In toolCatalog (lib/agents/tools.ts), synthesis_agent is marked as plannerVisible: true.
+
+Why this is a problem: The planner can explicitly schedule a step using the synthesis_agent. However, the runner already has hardcoded logic to run synthesizeFinalAnswer at the end of the run if it hasn't been done. If the planner schedules it mid-plan, it might generate the final answer prematurely without all the artifacts. Additionally, its expected arguments (sections, emphasis) aren't easily determinable by the planner mid-run.
+
+4. Nested Input Bindings vs LLM Prompt
+The planner prompt in draftPlan instructs:
+
+'- inputBindingsJson keys must exactly match declared arg names for the selected tool.'
+
+However, the db_stats_query tool expects arguments nested inside a filter object (e.g., filter.politicalLeaning).
+
+Mismatch: If the LLM follows the prompt literally, it will try to set "politicalLeaning": "steps.1.data.leaning". This will fail allowedArgRoots validation because politicalLeaning is not a root argument (filter is).
+
+If the LLM passes "filter": "steps.1.data.filter", it overwrites the entire object. This forces the LLM to guess that it needs to use dot-notation ("filter.politicalLeaning") which is supported by your setObjectPath utility, but completely omitted from the prompt instructions.
+
+5. Empty Resolved Bindings Crash Execution
+In resolveBindingValue, if the path the LLM points to doesn't exist in the artifact data (e.g., steps.step-1.data.nonexistent_field), the function returns undefined.
+Later, during executeToolById:
+
+TypeScript
+const resolvedArgs = toolDefinition.argsSchema.parse(normalizedResolvedArgs)
+If that missing field was a required argument for the tool, Zod will throw an error, failing the execution at runtime. There is no runtime-repair mechanism for missing bindings.
+
+
+== How to fix it
+The most elegant way to solve these architectural friction points is to move away from stringified JSON parsing and manual repair loops, and instead lean into **Native Structured Outputs**, **relaxed runtime validation**, and **Agentic Reflection (Retries)**.
+
+Here is the most elegant, modern approach to rebuilding this execution flow to eliminate mismatches and brittle fallbacks:
+
+### 1. Use Native Structured Outputs (OpenAI `strict: true`)
+
+Currently, your `plannerAgent` and `reviserAgent` rely on system prompt instructions like *"Set argsJson to a JSON string that decodes to an object"*. This is highly error-prone.
+
+**The Elegant Fix:**
+Use OpenAI's native **Structured Outputs** with `strict: true`. By passing your Zod schema directly into the OpenAI API's `response_format` parameter, the model is mathematically constrained at the token level to output exactly the keys and types your tool expects.
+
+* **Why it kills the "Repair Agent":** You no longer need a `stepArgsRepairAgent` to fix tool swaps. When the user revises a plan, you just pass the new instructions to the `reviserAgent` using the strict schema. The API guarantees the new `args` object will perfectly match the new tool's schema. You completely eliminate the need for `argsJson` strings.
+
+### 2. Strip Unknowns, Don't Fail Strictly (`.strip()` vs `.strict()`)
+
+Currently, your tools enforce `strictToolParameters()`, which calls `.strict()` on the Zod schema. If the LLM passes an extra argument (e.g., `{"timeframeDays": 7, "context": "user asked for recent"}`), Zod throws an error and crashes the step.
+
+**The Elegant Fix:**
+Remove `.strict()` from your tool schemas, or explicitly use `.strip()`.
+
+* **How it works:** `z.object({...}).strip()` will accept the valid arguments and silently discard the hallucinated ones. The tool gets exactly what it needs to run, and the LLM isn't penalized for trying to be "helpful" by passing extra context.
+
+### 3. Implement Agentic "Reflection" (Self-Healing at Runtime)
+
+Currently, if a specialist agent makes a mistake during execution, you catch the error and return a hardcoded "fallback" JSON. The `stepArgsRepairAgent` only runs during *manual human revision*, not runtime.
+
+**The Elegant Fix:**
+Instead of a separate "Repair Agent," give your execution agents a **Reflection Loop** (a standard pattern in frameworks like LangGraph or standard tool-calling loops).
+
+* **How it works:** If `db_stats_query` throws a database error or a required argument is missing, do *not* catch it and return a fallback. Instead, catch the error, format it as a "ToolMessage" (e.g., `"Tool execution failed: missing required parameter 'lastDays'"`), and feed it right back to the agent.
+* **The Result:** The agent reads the error, realizes its mistake, and calls the tool again with the corrected arguments. This provides true runtime self-healing without hardcoded fallbacks.
+
+### 4. Topologically Sort the Execution Graph
+
+Currently, you iterate through `plan.steps` in array order and check if dependencies are met. If the LLM orders them wrong, the system crashes.
+
+**The Elegant Fix:**
+Don't trust the LLM to order the array perfectly. Treat the `dependsOn` arrays as a Directed Acyclic Graph (DAG).
+
+* Before the loop starts, run a standard topological sort algorithm on `plan.steps`.
+* Reorder the steps in memory so that every step's dependencies are guaranteed to be evaluated before the step itself.
+* *Bonus:* This naturally allows you to execute independent steps in parallel using `Promise.all()`, vastly speeding up your runtime.
+
+### Summary of the "Elegant" Architecture:
+
+1. **Planner Phase:** Uses OpenAI Structured Outputs (`strict: true`). Outputs actual JSON objects for `args`, not strings. No `RepairAgent` needed.
+2. **Execution Phase:** Sorts steps topologically.
+3. **Tool Parsing Phase:** Uses Zod `.strip()` to ignore hallucinated keys instead of crashing.
+4. **Error Phase:** If a tool actually fails, the error is fed back to the agent for a retry, rather than swallowed by a silent fallback.
